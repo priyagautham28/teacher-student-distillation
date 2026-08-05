@@ -9,6 +9,7 @@ This repository is the shared team repo for the full distillation pipeline: one 
 
 ## Team structure
 
+### Contributions on this component
 | Piece | Who |
 |---|---|
 | Generation pipeline code (`generate_teacher_gsm8k.py`) | Poojitha Alam (majority) & Priyadarshini Rajmohan |
@@ -19,6 +20,7 @@ This repository is the shared team repo for the full distillation pipeline: one 
 
 | Role | Model | Owner | Details |
 |------|--------|--------|---------|
+| Teacher + dataset | Qwen3-14B-AWQ | Priyadarshini Rajmohan | See contribution breakdown above. official test-set evaluation run by Mounika Akkenapragada |
 | Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | `student/llama/README.md` |
 | Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/README.md` |
 | Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/README.md` |
@@ -53,6 +55,30 @@ How effectively can knowledge distillation transfer mathematical reasoning capab
 - **Minimal goal:** Generate a teacher dataset from a GSM8K subset; fine-tune three compact students (Qwen3-1.7B, Gemma 3 1B, Llama 3.2 1B) with QLoRA; evaluate each against its own pretrained base on the official GSM8K test split.
 - **Ambitious goal:** Compare student architectures under identical training conditions; measure efficiency gains from distillation; analyze how much of the teacher's performance each student retains; investigate whether architecture choice affects distillation effectiveness.
 - **Success criterion:** Reproducible adapters + metrics under a fixed protocol so the three student tracks are fairly comparable. A null or small gain is a valid scientific result.
+
+## Architectural differences across student models, and our expectations
+
+The three students are meaningfully different in architecture and training history, not just parameter count:
+
+| | Qwen3-1.7B | Gemma 3 1B | Llama 3.2 1B |
+|---|---|---|---|
+| Layers | 28 | 26 | 16 |
+| Hidden dim | 2048 | 1152 | 2048 |
+| Attention | GQA, 16 query heads / 8 key-value heads | Interleaved: 5 local sliding-window layers (1024-token window) per 1 global layer | Standard GQA every layer, 8 KV heads |
+| Vocab / tokenizer | BBPE, 151,669 tokens, 119 languages | Gemini 2.0 SentencePiece, 262,144 tokens | BPE, 128,256 tokens |
+| Native context | 32,768 tokens | 32,768 tokens (1B variant) | 131,072 tokens |
+| Pretraining scale | ~36 trillion tokens | ~2 trillion tokens (1B variant) | Derived from Llama 3.1's pretraining, not trained fresh at comparable scale |
+| How it was actually built | Standard large-scale dense pretraining, with an explicit built-in "thinking / non-thinking" reasoning mode | Pretrained, then post-trained with knowledge distillation from a larger instruct model | Built by *pruning* Llama 3.1 8B, then using knowledge distillation (logits from the 8B and 70B models as token-level targets) to recover performance lost during pruning |
+
+**The key observation this surfaces:** two of our three students (Llama 3.2 1B and Gemma 3 1B) are themselves already distilled models, produced from a larger teacher before our project even begins. Qwen3-1.7B, by contrast, is a standard densely-pretrained model with no such distillation lineage, and is also the largest of the three students.
+
+**Our ranked expectation:**
+
+1. **Qwen3-1.7B is expected to reach the highest absolute accuracy after distillation** — it has the most parameters, by far the largest pretraining scale, and a reasoning-oriented ("thinking mode") architecture already aligned with the kind of step-by-step supervision our teacher dataset provides.
+2. **Llama 3.2 1B may show the largest *relative* improvement from our distillation step**, even if it doesn't win on final accuracy — its own training history already depends on learning from a larger teacher's logits, which may make it comparatively receptive to a second round of teacher-based fine-tuning.
+3. **Gemma 3 1B is the architectural wildcard.** Its interleaved local/global attention (short 1024-token sliding windows for most layers) was designed for long-context memory efficiency, not specifically for reasoning depth. Whether that trade-off costs it anything on a task requiring the model to track a multi-step arithmetic chain within one response is, to our knowledge, untested and is one of the open questions this project can speak to.
+
+**A limitation we want to state upfront, not have pointed out to us later:** if Qwen3-1.7B does turn out strongest, our design cannot fully separate whether that's due to *architecture* (its reasoning-oriented design) or simply *scale* (it has 40–70% more parameters than the other two students). We report and discuss this explicitly in our results rather than treating a win for the larger model as confirmation of an architectural hypothesis.
 
 ## The teacher model — Qwen3-14B-AWQ
 
@@ -127,13 +153,14 @@ All three student tracks use the same teacher-generated dataset, identical train
 - McNemar significance results for each student's after-vs-teacher gap
 - Cross-model comparison chart (accuracy, latency, memory) across all three students
 - A few concrete example outputs (teacher trace vs. student trace) for the report/poster
+- Whether the ranked expectation above (Qwen3-1.7B highest accuracy, Llama largest relative gain, Gemma as the open question) held up against the actual results
 
 ## Conclusion
 
 *Placeholder — write once Results above is filled in. A few prompts to structure it:*
 
 - **Headline finding:** in one or two sentences, did distillation meaningfully recover reasoning performance across the students, and how consistent was that across architectures?
-- **Does distillation effectiveness differ by architecture?** This is the core ambitious-goal question — which student closed the most of the gap to the teacher, and is there a plausible reason why (tokenizer, model size, base pretraining)?
+- **Does distillation effectiveness differ by architecture?** Revisit the ranked expectation above directly — which prediction held, which didn't, and why?
 - **Efficiency trade-off:** how do the accuracy gains weigh against the peak memory / latency / model size numbers — is the smallest student "good enough" for the privacy-preserving local-deployment motivation, or does it fall short in practice?
 - **Limitations:** training subset size (2,000 examples), reliance on a single teacher model's generations as ground truth (errors in the teacher dataset propagate to all students), and any student where distillation gains were small or null.
 - **Why this matters going forward:** tie back to the motivation — privacy-preserving assistants, edge deployment, offline educational tools — what does the result actually tell someone deciding whether a distilled compact model is viable for their use case?
