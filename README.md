@@ -27,6 +27,10 @@ This repository is the shared team repo for the full distillation pipeline: one 
 
 Shared responsibilities: teacher prompts, dataset quality, hyperparameter protocol, audit of results, final report/presentation.
 
+## Pipeline overview
+
+![Project pipeline](teacher/project_pipeline.png)  
+
 ## Repository structure (current)
 
 ```text
@@ -47,6 +51,7 @@ teacher-student-distillation/
 ```
 
 Each student subfolder owner maintains their own README with that track's environment setup, training commands, and hyperparameter choices — this file doesn't duplicate that detail.
+
 
 ## Research question
 
