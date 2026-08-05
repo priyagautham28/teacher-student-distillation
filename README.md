@@ -9,9 +9,16 @@ This repository is the shared team repo for the full distillation pipeline: one 
 
 ## Team structure
 
+| Piece | Who |
+|---|---|
+| Generation pipeline code (`generate_teacher_gsm8k.py`) | Poojitha Alam (majority) & Priyadarshini Rajmohan |
+| Train/val dataset generation — actually run | Priyadarshini Rajmohan |
+| Rescue script (`rescue_dollar_rejects.py`) — recovers false-rejects from a calculation-detail regex edge case | Priyadarshini Rajmohan |
+| Shared evaluator (`evaluate_gsm8k.py`) | Poojitha Alam & Mounika Akkenapragada |
+| Official teacher test-set evaluation (Qwen3-14B-AWQ's accuracy on the full 1,319-question test set) | Mounika Akkenapragada |
+
 | Role | Model | Owner | Details |
 |------|--------|--------|---------|
-| Teacher + dataset | **Qwen3-14B-AWQ** | Priyadarshini Rajmohan | This README |
 | Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | `student/llama/README.md` |
 | Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/README.md` |
 | Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/README.md` |
