@@ -38,27 +38,27 @@ Examples
 --------
 # Student smoke test, base model, 20 questions (Gemma shown below; same pattern for Qwen/Llama):
 python evaluate_gsm8k.py --backend transformers --model google/gemma-3-1b-it \
-  --stage before_sft --limit 20 --load-in-4bit
+  --stage before_sft --limit 20 
 python evaluate_gsm8k.py --backend transformers --model meta-llama/Llama-3.2-1B-Instruct \
-  --stage before_sft --limit 20 --load-in-4bit
+  --stage before_sft --limit 20 
 python evaluate_gsm8k.py --backend transformers --model Qwen/Qwen3-1.7B \
-  --stage before_sft --limit 20 --load-in-4bit
+  --stage before_sft --limit 20 
 
 # Full QLoRA evaluation (same pattern for a Llama student):
 python evaluate_gsm8k.py --backend transformers --model google/gemma-3-1b-it \
-  --adapter-path outputs/gemma3_1b_gsm8k_qlora --stage after_sft --load-in-4bit
+  --adapter-path outputs/gemma3_1b_gsm8k_qlora --stage after_sft 
 python evaluate_gsm8k.py --backend transformers --model meta-llama/Llama-3.2-1B-Instruct \
-  --adapter-path outputs/llama3_1b_gsm8k_qlora --stage after_sft --load-in-4bit
+  --adapter-path outputs/llama3_1b_gsm8k_qlora --stage after_sft 
 python evaluate_gsm8k.py --backend transformers --model Qwen/Qwen3-1.7B \
-  --adapter-path outputs/qwen3_1_7b_gsm8k_qlora --stage after_sft --load-in-4bit
+  --adapter-path outputs/qwen3_1_7b_gsm8k_qlora --stage after_sft 
 
 # Automatic before/after comparison in one run:
 python evaluate_gsm8k.py --backend transformers --model google/gemma-3-1b-it \
-  --adapter-path outputs/gemma3_1b_gsm8k_qlora --compare-base --load-in-4bit
+  --adapter-path outputs/gemma3_1b_gsm8k_qlora --compare-base 
 python evaluate_gsm8k.py --backend transformers --model meta-llama/Llama-3.2-1B-Instruct \
-  --adapter-path outputs/llama3_1b_gsm8k_qlora --compare-base --load-in-4bit
+  --adapter-path outputs/llama3_1b_gsm8k_qlora --compare-base 
 python evaluate_gsm8k.py --backend transformers --model Qwen/Qwen3-1.7B \
-  --adapter-path outputs/qwen3_1_7b_gsm8k_qlora --compare-base --load-in-4bit
+  --adapter-path outputs/qwen3_1_7b_gsm8k_qlora --compare-base 
 
 # Qwen teacher served by vLLM/OpenAI-compatible API:
 python evaluate_gsm8k.py --backend openai --model Qwen/Qwen3-14B-AWQ \
