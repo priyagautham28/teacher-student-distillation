@@ -139,6 +139,21 @@ Shared across the teacher and all three students — one evaluator, not duplicat
 
 All three student tracks use the same teacher-generated dataset, identical train/val/test splits, identical prompts and decoding parameters, and the same evaluation script and scoring methodology.
 
+### Compute / GPU usage
+
+Teacher generation (train + val) and teacher test eval were run with different batching settings, so peak VRAM is reported separately. 
+
+| Model | Stage | Batch size | Max tokens | Peak GPU memory |
+|-------|--------|------------|------------|-----------------|
+| Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 4096 | ~23 GB |
+| Teacher (Qwen3-14B-AWQ) | Official test eval (Mounika) | 1 | 2048 | ~9.7 GB |
+| Llama-3.2-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
+| Llama-3.2-1B (eval) | Test | TBD | TBD | TBD |
+| Gemma-3-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
+| Gemma-3-1B (eval) | Test | TBD | TBD | TBD |
+| Qwen3-1.7B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
+| Qwen3-1.7B (eval) | Test | TBD | TBD | TBD | 
+
 ## Results
 
 *Placeholder — fill in once teacher and all three student tracks have been evaluated.*
