@@ -1,0 +1,46 @@
+{
+  "run_slug": "qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full",
+  "run_mode": "full",
+  "config_hash": "434a9551e7",
+  "dataset_version": "qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full",
+  "dataset_fingerprint": "db57797603bc184e273bf9fd9135e31290f6506df89038ca5c14bca92cb39401",
+  "generated_at": 1786156726.2155015,
+  "train": {
+    "accepted": 1922,
+    "rejected": 78,
+    "total_attempts": 2208,
+    "total_elapsed_seconds": 7037.769,
+    "total_prompt_tokens": 1228507,
+    "total_completion_tokens": 449074,
+    "total_tokens": 1677581,
+    "completion_tokens_per_second": 63.809,
+    "acceptance_rate": 0.961,
+    "top_rejection_reasons": [
+      [
+        "wrong_answer",
+        75
+      ],
+      [
+        "reasoning_lacks_calculation_detail",
+        3
+      ]
+    ]
+  },
+  "val": {
+    "accepted": 485,
+    "rejected": 15,
+    "total_attempts": 551,
+    "total_elapsed_seconds": 1684.212,
+    "total_prompt_tokens": 307020,
+    "total_completion_tokens": 107875,
+    "total_tokens": 414895,
+    "completion_tokens_per_second": 64.051,
+    "acceptance_rate": 0.97,
+    "top_rejection_reasons": [
+      [
+        "wrong_answer",
+        15
+      ]
+    ]
+  }
+}

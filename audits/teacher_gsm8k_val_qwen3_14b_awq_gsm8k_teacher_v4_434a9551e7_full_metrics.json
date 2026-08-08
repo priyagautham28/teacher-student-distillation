@@ -1,0 +1,17 @@
+{
+  "accepted": 485,
+  "rejected": 15,
+  "total_attempts": 551,
+  "total_elapsed_seconds": 1684.212,
+  "total_prompt_tokens": 307020,
+  "total_completion_tokens": 107875,
+  "total_tokens": 414895,
+  "completion_tokens_per_second": 64.051,
+  "acceptance_rate": 0.97,
+  "top_rejection_reasons": [
+    [
+      "wrong_answer",
+      15
+    ]
+  ]
+}

@@ -47,7 +47,7 @@ SOURCE_DATASET_REVISION: Optional[str] = None
 
 MODEL = "Qwen/Qwen3-14B-AWQ"
 MODEL_SLUG = "qwen3_14b_awq"
-BASE_URL = "http://localhost:8000/v1"
+BASE_URL = "http://localhost:8001/v1"
 REQUEST_TIMEOUT_SECONDS = 180.0
 
 MAX_TOKENS = 2048
@@ -78,14 +78,18 @@ MIN_REASONING_CHARACTERS = 20
 MIN_REASONING_WORDS = 8
 REQUIRE_NUMERIC_CALCULATION_IN_REASONING = True
 MAX_REASONING_CHARACTERS = 4_000
-MAX_REASONING_LINES = 30
+# One-operation-per-step reasoning (SYSTEM_PROMPT rules 2-3) runs longer than
+# the compressed style v3 produced. These ceilings exist to catch runaway
+# output, so they must stay well clear of normal length or they become an
+# implicit brevity cap that reintroduces step compression.
+MAX_REASONING_LINES = 60
 MAX_REPEATED_LINE_COUNT = 3
 MAX_REPEATED_SENTENCE_COUNT = 3
 MIN_RECOMMENDED_STEPS = 2
-MAX_RECOMMENDED_STEPS = 8
+MAX_RECOMMENDED_STEPS = 20
 
-PROMPT_VERSION = "gsm8k_teacher_v3"
-DATA_DIR = Path("data_final")
+PROMPT_VERSION = "gsm8k_teacher_v4"
+DATA_DIR = Path("data_final_v2")
 
 
 # =============================================================================
@@ -98,32 +102,49 @@ training examples for a smaller language model.
 
 Solve the given mathematical word problem carefully.
 
+The student model is small and makes an arithmetic slip on roughly one step in
+sixteen, so every step must be small enough to be executed and checked on its
+own. Write for that student, not for a reader who values brevity.
+
 Rules:
-1. Provide concise and logically complete reasoning.
-2. Use 2 to 8 clear reasoning steps when practical.
-3. Include every calculation needed to understand the solution.
-4. Verify the arithmetic before producing the final answer.
-5. Use only one solution method.
-6. Do not mention being an AI, training data, GSM8K, or the teacher model.
-7. Do not include Markdown, code fences, headings, or text outside the tags.
-8. Return both tags and close both tags.
-9. The <final_answer> tag must contain only the normalized numerical answer.
-10. Do not include commas, units, currency symbols, percentages, or explanatory
+1. Provide logically complete reasoning. Do not compress or abbreviate it.
+2. Use as many steps as the problem needs. Never merge steps to be brief, and
+   do not aim for a particular step count.
+3. Each step performs at most one arithmetic operation and states its numeric
+   result. Split a multi-operation calculation across one step per operation:
+   write "50 + 80 = 130", then "130 + 60 = 190", never "50 + 80 + 60 = 190".
+4. Write calculations with digits and the symbols + - * / =, not words. Write
+   "26 / 2 = 13", never "26 divided by 2 equals 13". Every step that computes
+   something must contain a symbolic equation.
+5. Include every calculation needed to understand the solution.
+6. Verify the arithmetic before producing the final answer.
+7. Use only one solution method.
+8. Do not mention being an AI, training data, GSM8K, or the teacher model.
+9. Do not include Markdown, LaTeX, code fences, headings, or text outside the
+   tags.
+10. Return both tags and close both tags.
+11. The <final_answer> tag must contain only the normalized numerical answer.
+12. Do not include commas, units, currency symbols, percentages, or explanatory
     text inside <final_answer>.
 
-Required output format:
+Required output format. Note that each step performs one operation and writes it
+symbolically:
 
 <reasoning>
-Step 1: ...
-Step 2: ...
+Step 1: One box holds 12 pencils.
+Step 2: Four boxes hold 12 * 4 = 48 pencils.
+Step 3: Six pencils are given away, so 48 - 6 = 42 remain.
 </reasoning>
-<final_answer>number only</final_answer>
+<final_answer>42</final_answer>
 """.strip()
 
+# Mirrored verbatim in reasoning-distillation/train_v2.py and
+# reasoning-distillation/evaluate.py. All three must change together or the
+# student is trained and evaluated under a different prompt than its targets.
 STUDENT_SYSTEM_PROMPT = (
-    "Solve the mathematical problem using concise step-by-step reasoning. "
-    "Return the reasoning inside <reasoning> tags and the numerical answer "
-    "inside <final_answer> tags."
+    "Solve the mathematical problem using step-by-step reasoning, with at most "
+    "one arithmetic operation per step. Return the reasoning inside <reasoning> "
+    "tags and the numerical answer inside <final_answer> tags."
 )
 
 
@@ -630,10 +651,16 @@ def count_numbered_steps(reasoning: str) -> int:
     return len(re.findall(r"(?im)^\s*(?:step\s*)?\d+\s*[:.)-]", reasoning))
 
 
-# Requires an operator or "=" directly between two numbers (e.g. "5 + 3 = 8"),
-# not just any digit. A restated total like "the answer is 8 apples" has
-# digits but no evidence of an actual calculation, and should not pass.
-CALCULATION_EVIDENCE_PATTERN = re.compile(r"\d\s*[+\-*/=×÷]\s*\d")
+# Requires an operator or "=" between two numbers (e.g. "5 + 3 = 8"), not just
+# any digit. A restated total like "the answer is 8 apples" has digits but no
+# evidence of an actual calculation, and should not pass.
+#
+# Currency symbols and unit words routinely sit between an operand and its
+# operator in ordinary teacher output ("$20 + $30", "9 pills/day * 14 days").
+# Demanding strict digit-adjacency made this the single largest rejection
+# reason in the v3 run, discarding valid CoTs, so strip the symbols first and
+# allow one unit word to intervene on either side of the operator.
+CALCULATION_EVIDENCE_PATTERN = re.compile(r"\d\s*[\w/%]*\s*[+\-*/=×÷]\s*[$€]?\s*\d")
 
 
 def text_outside_required_tags(raw_content: str) -> str:

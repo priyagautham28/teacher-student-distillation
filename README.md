@@ -5,7 +5,7 @@
 **Team:** Pick and Parse
 **Members:** Priyadarshini Rajmohan · Poojitha Alam · Mounika Akkenapragada
 
-This repository is the shared team repo for the full distillation pipeline: one teacher model and three independent student tracks. **This README covers the shared/root-level pieces and focuses mainly on the teacher model**, since that's owned here. Each student track has its own README inside its subfolder covering that track's setup and training specifics.
+This repository is the shared team repo for the full distillation pipeline: one teacher model and three independent student tracks. **This README covers the shared/root-level pieces and focuses mainly on the teacher model**, since that's owned here. Each student track will document setup and training in its own subfolder README when available.
 
 ## Team structure
 
@@ -14,22 +14,24 @@ This repository is the shared team repo for the full distillation pipeline: one 
 |---|---|
 | Generation pipeline code (`generate_teacher_gsm8k.py`) | Poojitha Alam (majority) & Priyadarshini Rajmohan |
 | Train/val dataset generation — actually run | Priyadarshini Rajmohan |
-| Rescue script (`rescue_dollar_rejects.py`) — recovers false-rejects from a calculation-detail regex edge case | Priyadarshini Rajmohan |
-| Shared evaluator (`evaluate_gsm8k.py`) | Poojitha Alam & Mounika Akkenapragada |
+| Rescue script (`rescur_dollar_rejects.py`) — recovers false-rejects from a calculation-detail regex edge case | Priyadarshini Rajmohan |
+| Shared evaluator (`evaluation/evaluate_gsm8k.py`) | Poojitha Alam & Mounika Akkenapragada |
 | Official teacher test-set evaluation (Qwen3-14B-AWQ's accuracy on the full 1,319-question test set) | Mounika Akkenapragada |
 
 | Role | Model | Owner | Details |
 |------|--------|--------|---------|
 | Teacher + dataset | Qwen3-14B-AWQ | Priyadarshini Rajmohan | See contribution breakdown above. official test-set evaluation run by Mounika Akkenapragada |
-| Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | `student/llama/README.md` |
-| Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/README.md` |
-| Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/README.md` |
+| Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | `student/llama/` (track README TBD) |
+| Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/` (track README TBD) |
+| Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/` (track README TBD) |
 
 Shared responsibilities: teacher prompts, dataset quality, hyperparameter protocol, audit of results, final report/presentation.
 
 ## Pipeline overview
 
-![Project pipeline](teacher/project_pipeline.png)  
+![Project pipeline](teacher/project_pipeline.png)
+
+*Note: the diagram shows an earlier planning snapshot (2,000 train + 200 val). The current `gsm8k_teacher_v4` run samples **2,000 train + 500 val** and keeps **1,922 / 485** accepted SFT examples after validation — see [Data](#data).*
 
 ## Repository structure (current)
 
@@ -40,17 +42,22 @@ teacher-student-distillation/
 ├── requirements-teacher.txt      # teacher / vLLM stack
 ├── requirements-llama.txt        # this track's student deps
 ├── audits/                       # teacher generation accepted/rejected audit records
-├── data/                         # shared train/val/test splits, used by all three student tracks
-├── outputs/                      # gitignored: adapters, sweep runs, MLflow artifacts
+├── data/                         # shared train/val SFT JSONL used by all student tracks
+├── evaluation/
+│   ├── evaluate_gsm8k.py         # shared teacher + student evaluator
+│   └── poster_analysis.py        # McNemar + team summary merge
+├── outputs/                      # run manifests, metrics, predictions (adapters may be gitignored)
 ├── teacher/
-│   └── generate_teacher_gsm8k.py # teacher dataset generation + validation pipeline
+│   ├── generate_teacher_gsm8k.py # teacher dataset generation + validation pipeline
+│   ├── rescur_dollar_rejects.py  # rescue false-rejects from $-formatting edge case
+│   └── project_pipeline.png      # high-level pipeline diagram
 └── student/
-    ├── llama/                    # Priyadarshini — see student/llama/README.md for setup/training
-    ├── gemma/                    # Poojitha — see student/gemma/README.md for setup/training
-    └── qwen/                     # Mounika — see student/qwen/README.md for setup/training
+    ├── llama/                    # Priyadarshini — track README TBD
+    ├── gemma/                    # Poojitha — track README TBD
+    └── qwen/                     # Mounika — track README TBD
 ```
 
-Each student subfolder owner maintains their own README with that track's environment setup, training commands, and hyperparameter choices — this file doesn't duplicate that detail.
+Each student subfolder owner will maintain their own README with that track's environment setup, training commands, and hyperparameter choices — this file doesn't duplicate that detail.
 
 
 ## Research question
@@ -92,35 +99,45 @@ This is the core piece owned in this repo's root, since every student track depe
 **Why Qwen3-14B-AWQ specifically:** the team initially discussed Qwen3-32B or DeepSeek-R1 as the teacher, but both were ruled out on hardware grounds — Qwen3-32B needs ~64GB VRAM at full precision (not possible on a single 24GB GPU), its FP8 form is unreliable on Ampere-generation cards, and AWQ with tensor parallelism would need two confirmed 24GB GPUs, which wasn't available. Qwen3-14B-AWQ was already smoke-tested and running locally via vLLM, making it the lower-risk, immediately workable choice while still being a meaningfully stronger reasoner than any of the ~1-2B students.
 
 **What the teacher pipeline (`teacher/generate_teacher_gsm8k.py`) does:**
-- Samples a fixed, reproducible subset of GSM8K (2,000 train + 200 validation examples), with the split cached and fingerprinted against the source dataset so it can't silently drift across reruns.
-- Prompts the teacher to produce a tagged `<reasoning>...</reasoning><final_answer>...</final_answer>` output for each problem.
+- Samples a fixed, reproducible subset of GSM8K (**2,000 train + 500 validation** examples), with the split cached and fingerprinted against the source dataset so it can't silently drift across reruns.
+- Prompts the teacher with **`gsm8k_teacher_v4`**: tagged `<reasoning>...</reasoning><final_answer>...</final_answer>` output, with at most one arithmetic operation per step and symbolic equations (digits/`+ - * / =`) so a small student can follow each step.
 - Validates every generation against a strict quality bar: correct final answer, well-formed tags, a minimum/maximum reasoning length, genuine calculation content (not just a restated total), no excessive repetition, no significant text outside the required tags.
 - Retries failed generations up to a fixed attempt limit, with deterministic per-attempt seeding so any regeneration is reproducible.
 - Logs every attempt to an append-only event log (`audits/`), so a killed run can resume exactly where it left off without losing or duplicating work, and rejected examples remain available for audit or later recovery.
 - Produces a clean, minimal SFT-ready JSONL per split, used identically by all three student tracks.
 
-**Known edge case already handled:** a small number of otherwise-correct generations were being rejected because dollar-sign formatting in a calculation (e.g. `12 * $0.50 = $6.00`) broke the strict calculation-detail regex check. A separate rescue script recovers these specific false-rejects under a deliberately looser (but still validated) pattern, with a full backup taken before any file is modified.
+**Known edge case already handled:** a small number of otherwise-correct generations were being rejected because dollar-sign formatting in a calculation (e.g. `12 * $0.50 = $6.00`) broke the strict calculation-detail regex check. `teacher/rescur_dollar_rejects.py` recovers these specific false-rejects under a deliberately looser (but still validated) pattern, with a full backup taken before any file is modified.
 
-**Teacher evaluation:** run via the shared evaluator (see below) against the official, untouched GSM8K test split, exactly like every student — the teacher's accuracy is the reference point every student's `gap_to_teacher_accuracy` is measured against.
+**Teacher evaluation:** run via `evaluation/evaluate_gsm8k.py` against the official, untouched GSM8K test split, exactly like every student — the teacher's accuracy is the reference point every student's `gap_to_teacher_accuracy` is measured against. Current official test exact-match for Qwen3-14B-AWQ: **94.7%** (see [Results](#results)).
 
 ## Data
 
 Primary source: **GSM8K** (grade-school math word problems).
 
-- **Train:** 2,000 examples, teacher-generated worked solutions + final answers
-- **Validation:** 200 examples, same generation process
-- **Test:** the official GSM8K test split (1,319 examples) — **untouched throughout training**, used exclusively for final evaluation across all three student tracks
+Current shared dataset: prompt version **`gsm8k_teacher_v4`**, config hash `434a9551e7` (run slug `qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full`).
 
-Shared files, produced by the teacher pipeline and consumed by every student track:
-- `data/train.jsonl`
-- `data/val.jsonl`
+| Split | Sampled | Accepted (SFT) | Acceptance rate |
+|-------|---------|----------------|-----------------|
+| Train | 2,000 | 1,922 | 96.1% |
+| Validation | 500 | 485 | 97.0% |
+| Test | — | official GSM8K test (1,319) — **untouched** throughout training | — |
+
+Shared files consumed by every student track:
+- `data/teacher_gsm8k_train_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl`
+- `data/teacher_gsm8k_val_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl`
+
+Audits / run metadata:
+- `audits/teacher_gsm8k_{train,val}_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_*.jsonl`
+- `outputs/teacher_train_metrics/run_manifest_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full.json`
+- `outputs/teacher_train_metrics/run_metrics_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full.json`
+- `outputs/teacher_train_metrics/gsm8k_subset_indices_bf6906f85e.json`
 
 ## Evaluation
 
 Shared across the teacher and all three students — one evaluator, not duplicated per model, so comparisons stay fair:
 
-- `evaluate_gsm8k.py` — model-family-agnostic evaluator (works with Qwen, Llama, or Gemma via `--model`). Supports the teacher (`--backend openai`, pointed at a running vLLM server) and any student (`--backend transformers`, optionally with `--adapter-path` and `--compare-base` for an automatic before/after comparison in one run).
-- `poster_analysis.py` — run once predictions exist: McNemar's significance test (was an accuracy difference real, or could it be noise?) and a merge utility to combine all three teammates' `summary.csv` into one team-wide comparison table.
+- `evaluation/evaluate_gsm8k.py` — model-family-agnostic evaluator (works with Qwen, Llama, or Gemma via `--model`). Supports the teacher (`--backend openai`, pointed at a running vLLM server) and any student (`--backend transformers`, optionally with `--adapter-path` and `--compare-base` for an automatic before/after comparison in one run).
+- `evaluation/poster_analysis.py` — run once predictions exist: McNemar's significance test (was an accuracy difference real, or could it be noise?) and a merge utility to combine all three teammates' `summary.csv` into one team-wide comparison table.
 
 ### Metrics reported
 
@@ -141,32 +158,34 @@ All three student tracks use the same teacher-generated dataset, identical train
 
 ### Compute / GPU usage
 
-Teacher generation (train + val) and teacher test eval were run with different batching settings, so peak VRAM is reported separately. 
+Teacher generation (train + val) and teacher test eval were run with different batching settings, so peak VRAM is reported separately. Generation config `max_tokens` is **2048** (see run manifest); train/val peak ~23 GB was observed at **batch size 4** on the vLLM teacher server.
 
 | Model | Stage | Batch size | Max tokens | Peak GPU memory |
 |-------|--------|------------|------------|-----------------|
-| Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 4096 | ~23 GB |
+| Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 2048 | ~23 GB |
 | Teacher (Qwen3-14B-AWQ) | Official test eval (Mounika) | 1 | 2048 | ~9.7 GB |
 | Llama-3.2-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
-| Llama-3.2-1B (eval) | Test | TBD | TBD | TBD |
+| Llama-3.2-1B (base eval) | Official test (before SFT) | 1 | 768 | ~2.3 GB |
 | Gemma-3-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
 | Gemma-3-1B (eval) | Test | TBD | TBD | TBD |
 | Qwen3-1.7B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
-| Qwen3-1.7B (eval) | Test | TBD | TBD | TBD | 
+| Qwen3-1.7B (eval) | Test | TBD | TBD | TBD |
 
 ## Results
 
-*Placeholder — fill in once teacher and all three student tracks have been evaluated.*
+Teacher official test and Llama base (before SFT) are filled from existing metrics; remaining student cells stay TBD until each track finishes.
 
 | Model | Exact-match accuracy | Improvement over base | Gap to teacher | Peak GPU memory | Inference latency | Model size |
 |---|---|---|---|---|---|---|
-| Teacher (Qwen3-14B-AWQ) | TBD | — | — | TBD | TBD | TBD |
-| Llama-3.2-1B (base) | TBD | — | TBD | TBD | TBD | TBD |
+| Teacher (Qwen3-14B-AWQ) | 94.7% | — | — | ~9.7 GB (test) / ~23 GB (gen) | ~19.7 s / ex (test) | 14B AWQ |
+| Llama-3.2-1B (base) | 43.4% | — | 51.3 pp | ~2.3 GB | ~1.9 s / ex | ~1.2B |
 | Llama-3.2-1B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
 | Gemma-3-1B (base) | TBD | — | TBD | TBD | TBD | TBD |
 | Gemma-3-1B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
 | Qwen3-1.7B (base) | TBD | — | TBD | TBD | TBD | TBD |
 | Qwen3-1.7B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
+
+Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_64b4a0d3_final_metrics.json`. Llama base: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_5b7bd0c3_before_sft_bf16_metrics.json`.
 
 *Add once available:*
 - McNemar significance results for each student's before-vs-after comparison
