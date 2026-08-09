@@ -104,11 +104,12 @@ DATASET_REVISION = "740312add88f781978c0658806c59bc2815b9866"
 DATASET_SPLIT = "test"
 
 SYSTEM_PROMPT = (
-    "Solve the mathematical problem using concise step-by-step reasoning. "
-    "Return the reasoning inside <reasoning> tags and the numerical answer "
-    "inside <final_answer> tags. The <final_answer> tag must contain only the "
-    "normalized numerical answer without units, currency symbols, commas, "
-    "percent signs, or explanatory text."
+    "Solve the mathematical problem using step-by-step reasoning, with at most "
+    "one arithmetic operation per step. Return the reasoning inside <reasoning> "
+    "tags and the numerical answer inside <final_answer> tags. The "
+    "<final_answer> tag must contain only the normalized numerical answer "
+    "without units, currency symbols, commas, percent signs, or explanatory "
+    "text."
 )
 USER_TEMPLATE = "Problem:\n{question}"
 
