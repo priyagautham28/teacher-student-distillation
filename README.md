@@ -227,7 +227,7 @@ Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_me
 
 ## Proof: Llama-3.2-1B vs Meta’s model-card GSM8K (what actually exceeded 44.4%)
 
-### Fair comparison first (do not overclaim)
+### Fair comparison first
 
 | | Meta Llama-3.2-1B-Instruct (model card) | Our best Llama student |
 |--|----------------------------------------|-------------------------|
