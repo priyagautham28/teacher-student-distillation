@@ -1,0 +1,62 @@
+{
+  "accuracy_ci_lower": 0.909021986353298,
+  "accuracy_ci_upper": 0.9370735405610311,
+  "adapter_path": null,
+  "answer_extraction_success_rate": 1.0,
+  "average_completion_tokens": 162.47384382107657,
+  "average_inference_seconds": 2.2723965252586518,
+  "backend": "openai",
+  "completion_tokens_per_second": 71.49889643603608,
+  "config_hash": "3cb9a5c9",
+  "correct_and_valid_rate": 0.913570887035633,
+  "dataset": "openai/gsm8k",
+  "dataset_revision": "740312add88f781978c0658806c59bc2815b9866",
+  "evaluation_type": "gsm8k_shared_model_evaluation",
+  "exact_match_accuracy": 0.9226686884003032,
+  "failure_reason_counts": {
+    "ambiguous_final_answer": 0,
+    "empty_reasoning": 0,
+    "generation_error": 0,
+    "malformed_final_answer_tag": 4,
+    "malformed_reasoning_tag": 18,
+    "missing_final_answer_tag": 3,
+    "missing_reasoning_tag": 0,
+    "no_extractable_answer": 0,
+    "non_numeric_final_answer": 2,
+    "truncated_output": 3,
+    "wrong_answer": 102
+  },
+  "generation_config": {
+    "disable_qwen_thinking": true,
+    "max_new_tokens": 2048,
+    "seed": 42,
+    "temperature": 0.0,
+    "top_p": 1.0
+  },
+  "generation_error_rate": 0.0,
+  "main_secondary_metric": "correct_and_valid_rate",
+  "median_inference_seconds": 2.034396725706756,
+  "model": "Qwen/Qwen3-14B-AWQ",
+  "model_metadata": {
+    "backend": "openai",
+    "base_url": "http://localhost:8001/v1",
+    "model": "Qwen/Qwen3-14B-AWQ",
+    "parameter_count": null
+  },
+  "p95_inference_seconds": 3.7277880149427784,
+  "peak_cuda_memory_bytes": null,
+  "prediction_file": "eval_outputs_v2/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_predictions.jsonl",
+  "primary_metric": "exact_match_accuracy",
+  "prompt": {
+    "system_prompt": "Solve the mathematical problem using step-by-step reasoning, with at most one arithmetic operation per step. Return the reasoning inside <reasoning> tags and the numerical answer inside <final_answer> tags. The <final_answer> tag must contain only the normalized numerical answer without units, currency symbols, commas, percent signs, or explanatory text.",
+    "user_template": "Problem:\n{question}"
+  },
+  "requested_limit": null,
+  "stage": "teacher",
+  "total_completion_tokens": 214303,
+  "total_examples": 1319,
+  "total_inference_seconds": 2997.2910168161616,
+  "total_prompt_tokens": 195618,
+  "truncation_rate": 0.002274450341167551,
+  "valid_format_rate": 0.9840788476118272
+}
