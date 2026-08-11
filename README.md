@@ -75,9 +75,9 @@ This project investigates knowledge distillation techniques to transfer complex 
 **Teacher (shared reference).** Qwen3-14B-AWQ reaches **92.27%** exact-match on the official GSM8K test set under the shared tagged-CoT protocol — the ceiling every student is measured against.
 
 **Llama-3.2-1B-Instruct (Priyadarshini track) — filled.**
-- Base (before SFT, bf16): **43.4%** EM; valid format only **~50%**; correct-and-valid **~25%**.
+- Base (before SFT, bf16, v4 prompt, `max_new_tokens=1024`): **43.1%** EM; valid format **~58%**; correct-and-valid **~29%**.
 - Best after QLoRA (prompt-matched `train_v3` on `gsm8k_teacher_v4`): **51.3%** EM (95% CI 48.5–54.0%); valid format **92.8%**; correct-and-valid **51.3%**.
-- **Distillation gain:** **+7.9 pp** absolute EM over the same student’s base under the shared evaluator.
+- **Distillation gain:** **+8.2 pp** absolute EM over the same student’s base under the shared evaluator.
 - **Gap to teacher:** **41.0 pp** remaining (92.27% − 51.3%) — most headroom is still open.
 - **What improved most:** format adherence (tagged `<reasoning>` / `<final_answer>`). Residual failures are mostly **valid-but-wrong math** (~642), not tag errors (~94 trunc/loop).
 - **What did *not* move the needle much:** longer one-op-per-step teacher traces alone (v4 without prompt match ≈ **48.9%**, similar to v3 concise **~49.0%**); LoRA **r=32** slightly worse than **r=16** (**48.7%**).
@@ -186,7 +186,7 @@ Teacher generation (train + val) and teacher test eval were run with different b
 | Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 2048 | ~23 GB |
 | Teacher (Qwen3-14B-AWQ) | Official test eval (Mounika) | 1 | 2048 | ~9.7 GB |
 | Llama-3.2-1B (QLoRA train) | Fine-tuning (`train_v3`, r=16, lr=2e-4, eff. batch 16, max_seq 1024) | 4 × accum 4 | 1024 (seq) / gen-eval 1024 | ~4-bit QLoRA on 24GB class GPU; wall-clock ~30 min / run |
-| Llama-3.2-1B (base eval) | Official test (before SFT, bf16) | 1 | 768 | ~2.3 GB |
+| Llama-3.2-1B (base eval) | Official test (before SFT, bf16, v4 prompt) | 1 | 1024 | ~2.4 GB |
 | Llama-3.2-1B (after QLoRA eval) | Official test (best adapter) | 1 | 1024 | ~2.6 GB |
 | Gemma-3-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
 | Gemma-3-1B (eval) | Test | TBD | TBD | TBD |
@@ -200,30 +200,30 @@ Teacher official test and Llama base (before SFT) are filled from existing metri
 | Model | Exact-match accuracy | Improvement over base | Gap to teacher | Peak GPU memory | Inference latency | Model size |
 |---|---|---|---|---|---|---|
 | Teacher (Qwen3-14B-AWQ) | 92.27% | — | — | ~9.7 GB (test) / ~23 GB (gen) | ~2.27 s / ex (test) | 14B AWQ |
-| Llama-3.2-1B (base) | 43.4% | — | 48.9 pp | ~2.3 GB | ~1.9 s / ex | ~1.2B |
-| Llama-3.2-1B (after QLoRA) | **51.3%** | **+7.9 pp** | **41.0 pp** | ~2.6 GB | ~5.6 s / ex | ~1.2B + ~58 MB adapter |
+| Llama-3.2-1B (base) | 43.1% | — | 49.2 pp | ~2.4 GB | ~2.1 s / ex | ~1.2B |
+| Llama-3.2-1B (after QLoRA) | **51.3%** | **+8.2 pp** | **41.0 pp** | ~2.6 GB | ~5.6 s / ex | ~1.2B + ~58 MB adapter |
 | Gemma-3-1B (base) | TBD | — | TBD | TBD | TBD | TBD |
 | Gemma-3-1B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
 | Qwen3-1.7B (base) | TBD | — | TBD | TBD | TBD | TBD |
 | Qwen3-1.7B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
 
-Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`. Llama base: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_5b7bd0c3_before_sft_bf16_metrics.json`.
+Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`. Llama base: `outputs/llama/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json`.
 
 ### Llama before vs after SFT (detail)
 | Metric | Before SFT | After SFT (best) | Change |
 |--------|----------:|-----------------:|--------|
-| Exact-match accuracy | 43.4% | **51.3%** | **+7.9 pp** |
-| Correct-and-valid rate | 25.2% | **51.3%** | **+26.1 pp** |
-| Valid format rate | 50.4% | **92.8%** | **+42.4 pp** |
+| Exact-match accuracy | 43.1% | **51.3%** | **+8.2 pp** |
+| Correct-and-valid rate | 28.9% | **51.3%** | **+22.4 pp** |
+| Valid format rate | 58.1% | **92.8%** | **+34.7 pp** |
 | Truncation rate | 0.8% | 7.1% | +6.3 pp (longer CoTs) |
-| Avg inference latency | ~1.9 s / ex | ~5.6 s / ex | longer generations |
-| Peak GPU memory (eval) | ~2.3 GB | ~2.6 GB | similar |
-| `max_new_tokens` | 768 | 1024 | — |
+| Avg inference latency | ~2.1 s / ex | ~5.6 s / ex | longer generations |
+| Peak GPU memory (eval) | ~2.4 GB | ~2.6 GB | similar |
+| `max_new_tokens` | 1024 | 1024 | — |
 | Adapter | none | `…/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` | QLoRA r=16, lr=2e-4 |
-**What changed:** distillation mainly taught the required tagged format (format ~50% → ~93%) and raised answer accuracy by **+7.9 pp**. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags.
+**What changed:** distillation mainly taught the required tagged format (format ~58% → ~93%) and raised answer accuracy by **+8.2 pp**. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags. Before-SFT rerun uses the shared v4 one-op-per-step prompt (same family as after-SFT eval).
 **Metrics files:**
-- Before: 
-- After: 
+- Before: `outputs/llama/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json`
+- After: `…_after_sft_10a84857_metrics.json`
 
 ## Proof: Llama-3.2-1B vs Meta’s model-card GSM8K (what actually exceeded 44.4%)
 
@@ -238,7 +238,7 @@ Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_me
 | Decoding | `em_maj1@1` (1 sample) | Greedy (`temperature=0`), 1 decode |
 | Metric idea | Exact match on final answer | Exact match on final answer |
 
-**Claim we make:** under our shared 0-shot tagged protocol, after distillation, Llama reaches **51.3%**, which is **above Meta’s published 44.4%** and **+7.9 pp** over our own base (**43.4%**).  
+**Claim we make:** under our shared 0-shot tagged protocol, after distillation, Llama reaches **51.3%**, which is **above Meta’s published 44.4%** and **+8.2 pp** over our own base (**43.1%**).  
 **Claim we do *not* make:** that we beat Meta’s training recipe under Meta’s 8-shot setup.
 
 ---
@@ -249,7 +249,7 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 
 | Step | Method / change | Data | Key params | Test EM | vs Meta 44.4% |
 |------|-----------------|------|------------|--------:|:-------------:|
-| A | Base Instruct (no SFT) | — | bf16, `max_new_tokens=768` | **43.4%** | below |
+| A | Base Instruct (no SFT) | — | bf16, v4 prompt, `max_new_tokens=1024` | **43.1%** | below |
 | B | QLoRA SFT (`train_v2`) | teacher **v3** (concise CoT) | lr `2e-4`, LoRA r/α `16/32`, select on **eval_loss** | **~49.0%** | above |
 | C | QLoRA SFT (`train_v3`) | teacher **v4** (one-op-per-step) | lr `2e-4`, r/α `16/32`, select on **`eval_gen_exact_match`** | **48.9%** | above |
 | D | Same as C + larger LoRA | v4 | lr `2e-4`, r/α **`32/64`** | **48.7%** | above |
