@@ -320,10 +320,6 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 
 ## Conclusion
 
-*Placeholder — write once Results above is filled in. A few prompts to structure it:*
-
-## Conclusion
-
 **Headline (so far).** Distilling Qwen3-14B-AWQ GSM8K chain-of-thought into compact students is workable under a shared protocol. The teacher ceiling is **92.27%** EM. On the completed Llama-3.2-1B track, QLoRA distillation raises exact-match from **43.1% → 51.3%** (+**8.2** pp; McNemar \(p \approx 1.4 \times 10^{-7}\)), while a **~41** pp gap to the teacher remains significant (\(p \approx 2.5 \times 10^{-111}\)).
 
 **What transferred.** Gains are real but bounded: the student mainly learns the tagged protocol (format ~58% → ~93%) and recovers modest answer accuracy. Residual errors are mostly valid-but-wrong math — a reasoning/capacity limit on a cross-family ~1B model, not missing tags.
