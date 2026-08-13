@@ -68,7 +68,17 @@ How effectively can knowledge distillation transfer mathematical reasoning capab
 
 ## Executive Summary
 
-This project investigates knowledge distillation techniques to transfer complex mathematical reasoning capabilities from large teacher language models to smaller, compact student models. By distilling reasoning pathways and intermediate rationales, we aim to build resource-efficient models capable of solving multi-step mathematical problems locally without incurring the high latency and computational overhead of large-scale models.
+We distill mathematical reasoning from a large teacher (**Qwen3-14B-AWQ**) into compact students (~1–2B) so they can run locally with lower cost and better privacy.
+
+**Shared pipeline:** generate verified GSM8K teacher CoTs → QLoRA fine-tune three students (Llama, Gemma, Qwen) under one eval protocol → compare base vs distilled vs teacher.
+
+**Results so far**
+- **Teacher ceiling:** **92.27%** exact-match on official GSM8K test.
+- **Llama-3.2-1B (complete):** **43.1% → 51.3%** (+8.2 pp; McNemar \(p \approx 1.4 \times 10^{-7}\)); **~41 pp** still below the teacher.
+- - **Gemma / Qwen tracks:** 
+- **Main takeaway:** distillation teaches the required format and recovers a real but bounded accuracy gain, architecture/scale still dominate the remaining gap.
+
+**How to read this README:** teacher + shared data/eval first; per-student depth in each `student/<model>/` README (Llama: [`student/llama/README.md`](student/llama/README.md))(Gemma)(Qwen).
 
 ## Key Findings & Results
 
