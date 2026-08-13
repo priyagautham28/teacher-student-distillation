@@ -20,7 +20,7 @@ This repository is the shared team repo for the full distillation pipeline: one 
 | Role | Model | Owner | Details |
 |------|--------|--------|---------|
 | Teacher + dataset | Qwen3-14B-AWQ | Priyadarshini Rajmohan | See contribution breakdown above. |
-| Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | `student/llama/` (track README TBD) |
+| Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | Track README: [`student/llama/README.md`](student/llama/README.md) |
 | Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/` (track README TBD) |
 | Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/` (track README TBD) |
 
@@ -82,6 +82,9 @@ This project investigates knowledge distillation techniques to transfer complex 
 - **What improved most:** format adherence (tagged `<reasoning>` / `<final_answer>`). Residual failures are mostly **valid-but-wrong math** (~642), not tag errors (~94 trunc/loop).
 - **What did *not* move the needle much:** longer one-op-per-step teacher traces alone (v4 without prompt match ≈ **48.9%**, similar to v3 concise **~49.0%**); LoRA **r=32** slightly worse than **r=16** (**48.7%**).
 - **Largest in-protocol win for Llama:** aligning train prompts to `evaluate_gsm8k.py` (`SYSTEM_PROMPT` + `Problem:\n{question}`) — **48.9% → 51.3%**.
+- **Statistical significance (McNemar, paired n=1,319):** SFT gain \(p \approx 1.4 \times 10^{-7}\); gap to teacher \(p \approx 2.5 \times 10^{-111}\).  
+  Artifacts: (Add mcnemar files)
+- **Full Llama track docs** (why this student, figures, ablations, reproduce): [`student/llama/README.md`](student/llama/README.md)
 
 **Vs Meta’s published Llama-3.2-1B-Instruct GSM8K (44.4%, 8-shot CoT).** Our **51.3%** is higher but **not a strict apples-to-apples beat**: Meta’s number is the untuned Instruct model under 8-shot CoT; ours is **0-shot tagged CoT after GSM8K teacher distillation**. Fair claim: distillation + eval-matched prompts lifts this 1B student above both its own base and Meta’s reported 1B band under *our* protocol — not that we beat Meta’s training recipe.
 
@@ -207,7 +210,9 @@ Teacher official test and Llama base (before SFT) are filled from existing metri
 | Qwen3-1.7B (base) | TBD | — | TBD | TBD | TBD | TBD |
 | Qwen3-1.7B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
 
-Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`. Llama base: `outputs/llama/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json`.
+Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`. 
+Llama before: `outputs/student/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json`.  
+Llama after: `outputs/student/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_10a84857_metrics.json`.
 
 ### Llama before vs after SFT (detail)
 | Metric | Before SFT | After SFT (best) | Change |
@@ -221,6 +226,9 @@ Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_me
 | `max_new_tokens` | 1024 | 1024 | — |
 | Adapter | none | `…/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` | QLoRA r=16, lr=2e-4 |
 **What changed:** distillation mainly taught the required tagged format (format ~58% → ~93%) and raised answer accuracy by **+8.2 pp**. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags. Before-SFT rerun uses the shared v4 one-op-per-step prompt (same family as after-SFT eval).
+![Llama base vs after vs teacher](student/llama/llama_accuracy_bars_purple_gold_v2.png)
+*Same shared GSM8K test: base 43.1% → distilled 51.3% vs teacher 92.3%. Full Llama track: [`student/llama/README.md`](student/llama/README.md).*
+
 **Metrics files:**
 - Before: `outputs/llama/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json`
 - After: `…_after_sft_10a84857_metrics.json`
@@ -249,7 +257,7 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 
 | Step | Method / change | Data | Key params | Test EM | vs Meta 44.4% |
 |------|-----------------|------|------------|--------:|:-------------:|
-| A | Base Instruct (no SFT) | — | bf16, v4 prompt, `max_new_tokens=1024` | **43.1%** | below |
+| A | Base Instruct (no SFT) | — | bf16, v4 prompt | **43.1%** | below |
 | B | QLoRA SFT (`train_v2`) | teacher **v3** (concise CoT) | lr `2e-4`, LoRA r/α `16/32`, select on **eval_loss** | **~49.0%** | above |
 | C | QLoRA SFT (`train_v3`) | teacher **v4** (one-op-per-step) | lr `2e-4`, r/α `16/32`, select on **`eval_gen_exact_match`** | **48.9%** | above |
 | D | Same as C + larger LoRA | v4 | lr `2e-4`, r/α **`32/64`** | **48.7%** | above |
@@ -293,8 +301,8 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 - Dominant failure: **wrong_answer with valid tags** (~642) — reasoning errors, not missing tags
 
 *Add once available:*
-- McNemar significance results for each student's before-vs-after comparison
-- McNemar significance results for each student's after-vs-teacher gap
+- McNemar (Llama): SFT gain \(p \approx 1.4 \times 10^{-7}\) (265 only-after vs 156 only-before correct); gap to teacher \(p \approx 2.5 \times 10^{-111}\) (559 only-teacher vs 19 only-student). Details: [`student/llama/README.md`](student/llama/README.md)
+- McNemar (Gemma / Qwen): TBD
 - Cross-model comparison chart (accuracy, latency, memory) across all three students
 - A few concrete example outputs (teacher trace vs. student trace) for the report/poster
 - Whether the ranked expectation above (Qwen3-1.7B highest accuracy, Llama largest relative gain, Gemma as the open question) held up against the actual results
@@ -303,27 +311,23 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 
 *Placeholder — write once Results above is filled in. A few prompts to structure it:*
 
-- **Headline finding:** in one or two sentences, did distillation meaningfully recover reasoning performance across the students, and how consistent was that across architectures?
-- **Does distillation effectiveness differ by architecture?** Revisit the ranked expectation above directly — which prediction held, which didn't, and why?
-- **Efficiency trade-off:** how do the accuracy gains weigh against the peak memory / latency / model size numbers — is the smallest student "good enough" for the privacy-preserving local-deployment motivation, or does it fall short in practice?
-- **Limitations:** training subset size (2,000 examples), reliance on a single teacher model's generations as ground truth (errors in the teacher dataset propagate to all students), and any student where distillation gains were small or null.
-- **Why this matters going forward:** tie back to the motivation — privacy-preserving assistants, edge deployment, offline educational tools — what does the result actually tell someone deciding whether a distilled compact model is viable for their use case?
+## Conclusion
 
-## Lessons learned
+**Headline (so far).** Distilling Qwen3-14B-AWQ GSM8K chain-of-thought into compact students is workable under a shared protocol. The teacher ceiling is **92.27%** EM. On the completed Llama-3.2-1B track, QLoRA distillation raises exact-match from **43.1% → 51.3%** (+**8.2** pp; McNemar \(p \approx 1.4 \times 10^{-7}\)), while a **~41** pp gap to the teacher remains significant (\(p \approx 2.5 \times 10^{-111}\)).
 
-1. **Pilot small, then scale.** Next time: smoke the full train→gen-eval→full-test loop on **~500** accepted teacher examples (or a hard subset), lock prompts/hparams, **then** scale to the full 2,000-train run. We paid full-data cost several times for issues that a 500-ex pilot would have caught earlier (prompt mismatch, truncation under longer CoTs, r=32 not helping).
+**What transferred.** Gains are real but bounded: the student mainly learns the tagged protocol (format ~58% → ~93%) and recovers modest answer accuracy. Residual errors are mostly valid-but-wrong math — a reasoning/capacity limit on a cross-family ~1B model, not missing tags.
 
-2. **Train must match eval prompts exactly.** Teacher JSONL `messages` are not automatically the eval prompt. Rebuilding every SFT row with the shared `evaluate_gsm8k.py` system prompt + `Problem:\n{question}` was worth ~**+2 pp** on Llama (48.9% → 51.3%). Treat prompt drift as a first-class bug.
+**What mattered for Llama.** SFT alone reaches ~49%; train↔eval prompt matching adds the last lift to 51.3%. Longer teacher traces alone and larger LoRA rank (r=32) did not help. Details: [`student/llama/README.md`](student/llama/README.md).
 
-3. **Teacher style trades accuracy for format risk on tiny students.** One-op-per-step v4 traces are clearer but longer; without enough `max_new_tokens` / loop control, 1B models truncate and lose `</final_answer>`. Measure format/truncation alongside EM.
+**What mattered for Gemma.** 
 
-4. **More LoRA rank ≠ better.** On this task, **r=32** did not beat **r=16** (48.7% vs 48.9% before prompt-match). Prefer a small controlled grid over assuming capacity helps.
+**What mattered for Qwen.** 
 
-5. **Select checkpoints on generation EM, not only eval_loss.** `train_v3` early-stops on `eval_gen_exact_match` (n=100). Loss can improve while greedy answers do not.
+**Architecture expectations.** Still pending full Gemma / Qwen numbers. Working hypothesis: Qwen3-1.7B highest absolute accuracy (same family / scale); Llama a hard cross-family case with clear relative gain; Gemma competitive if math post-training carries over. Revisit when all three cells in Results are filled.
 
-6. **Error mix tells you what to optimize next.** After prompt-match, Llama’s residual is mostly **wrong math with valid tags** — a capacity/reasoning ceiling — not more tag engineering. Further gains likely need better data mixture, rejection sampling, or a stronger student, not another format tweak.
+**Efficiency / privacy motivation.** The distilled Llama student stays light at eval (~2.6 GB) and is practical for local inference, but latency rises with longer CoTs (~2.1 → ~5.6 s/ex). Compact distilled models are viable as privacy-friendly assistants for this task band — not drop-in replacements for the 14B teacher.
 
-7. **Save adapters + config hashes + metrics together.** Resume-friendly eval and config hashes (`10a84857`, etc.) made full 1,319-run debugging tractable, keep that discipline for the team merge.
+**Limitations.** Training on a 2,000-example teacher subset; teacher errors can propagate; only one student track fully reported so far; single-teacher, single-benchmark (GSM8K).
 
 ## Risks and mitigations (summary — see full proposal for details)
 
