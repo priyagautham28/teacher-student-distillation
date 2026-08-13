@@ -225,6 +225,7 @@ Llama after: `outputs/student/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_a
 | Peak GPU memory (eval) | ~2.4 GB | ~2.6 GB | similar |
 | `max_new_tokens` | 1024 | 1024 | — |
 | Adapter | none | `…/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` | QLoRA r=16, lr=2e-4 |
+
 **What changed:** distillation mainly taught the required tagged format (format ~58% → ~93%) and raised answer accuracy by **+8.2 pp**. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags. Before-SFT rerun uses the shared v4 one-op-per-step prompt (same family as after-SFT eval).
 ![Llama base vs after vs teacher](student/llama/llama_accuracy_bars_purple_gold_v2.png)
 *Same shared GSM8K test: base 43.1% → distilled 51.3% vs teacher 92.3%. Full Llama track: [`student/llama/README.md`](student/llama/README.md).*
