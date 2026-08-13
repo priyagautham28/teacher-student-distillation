@@ -1,0 +1,12 @@
+--extra-index-url https://download.pytorch.org/whl/cu126
+
+torch==2.6.0
+transformers==4.51.3
+accelerate>=0.30.0
+datasets>=2.19.0
+numpy<2.0
+peft
+trl
+bitsandbytes
+tqdm>=4.66.0
+
