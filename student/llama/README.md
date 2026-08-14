@@ -117,10 +117,6 @@ Paired view: of 412 answers that changed, **60.4%** improved (~1.5 fixes per reg
 
 ### Figure 1 — Accuracy: base vs distilled Llama vs teacher
 
-![Llama before vs after exact-match](../../outputs/llama/llama_before_after_em_max768_small.png)
-
-*Before vs after SFT only (`max_new_tokens=768`): **44.3% → 50.8%**.*
-
 ![Llama accuracy bars](../../outputs/llama/analysis/llama_accuracy_bars_team_max768.png)
 
 **What this shows:** under the same GSM8K test set and shared evaluator (`max_new_tokens=768`), distillation lifts Llama from 44.3% to 50.8%, while the teacher remains far ahead at 92.3%.
@@ -146,7 +142,6 @@ Same 1,319 problems before vs after:
 | Llama base | 44.3% | **~48.0 pp** |
 | Llama distilled | 50.8% | **~41.5 pp** |
 | Gap closed | — | **~6.5 pp ≈ 13.6%** of the original gap |
-Transfer is **real but partial**. Same-family Qwen3-1.7B (~79.6% after SFT in the teammate track) sits closer to the teacher.
 
 ### Figure 2 — Training curves
 
@@ -223,29 +218,6 @@ The base already attempts tags but skips a step; after distillation the student 
 
 ---
 
-## Why these students differ (and what we expected)
-
-The team compares three ~1–2B students under the **same teacher data, splits, prompts, and shared evaluator**. Generation length caps are matched for the student scoreboard (**Llama and Qwen: `max_new_tokens=768`**); the teacher reference uses **2048**. They are not interchangeable “1B models”:
-
-| | Qwen3-1.7B (teammate) | Gemma 3 1B (teammate) | **Llama 3.2 1B (this repo)** |
-|---|---|---|---|
-| Layers | 28 | 26 | **16** |
-| Hidden dim | 2048 | 1152 | **2048** |
-| Attention | Grouped-query attention (GQA) | Local sliding-window + global | **GQA every layer** |
-| Tokenizer | Byte-level byte-pair encoding (BBPE) (~152k) | SentencePiece (~262k) | **Byte-pair encoding (BPE) (~128k)** |
-| Build history | Dense pretrain + thinking mode | Post-trained with knowledge distillation (KD) from a larger instruct model | **Pruned from Llama 3.1 8B, then KD-recovered** |
-| Relation to teacher | **Same family** as Qwen3-14B | Different family | **Different family** from Qwen teacher |
-
-**Ranked expectations (stated before cross-model merge):**
-
-1. **Qwen3-1.7B** — highest expected *absolute* accuracy (scale, pretraining, same family as teacher CoTs).
-2. **Llama-3.2-1B** — may show large *relative* gain from a second teacher-based step (already KD-shaped in its lineage), but **harder cross-family transfer** than Qwen; useful stress test.
-3. **Gemma 3 1B** — strong math post-training; expected competitive baseline vs Llama, edge after distillation TBD.
-
-**This track’s result in that frame:** Llama gained **+6.5 pp** under the matched `768` eval (44.3% → 50.8%). Intermediate ablations below were measured during development; the official scoreboard is the `max768` before/after pair.
-
----
-
 ## What moved the score (ablations)
 
 ### What happened (in order)
@@ -315,7 +287,7 @@ Qwen3-14B-AWQ (teacher, shared)
 | NEFTune α | `5.0` |
 | Checkpoint selection | `eval_gen_exact_match` (n=100), early stopping |
 | Prompt protocol | Updated shared v4 `SYSTEM_PROMPT` + `USER_TEMPLATE = "Problem:\n{question}"` used consistently for the official v4 run |
-| Adapter path | `outputs/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` |
+| Adapter path | `llama3_1b_v4_r16_lr2e4` (created by train; not required to read the official metrics below) |
 | Eval | shared `evaluate_gsm8k.py`, `--stage after_sft`, greedy, `max_new_tokens=768` |
 | Metrics file | `outputs/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_metrics.json` |
 
@@ -327,8 +299,6 @@ Qwen3-14B-AWQ (teacher, shared)
 - Dominant failure: **wrong_answer with valid tags** (~649 incorrect; ~550 wrong-but-valid) — reasoning errors, not missing tags
 
 Teacher generation lives in `teacher/` and the Llama environment is defined by `student/llama/requirements-llama.txt`.
-
-**Do not** run teacher vLLM and student QLoRA on the same GPU at once.
 
 ---
 
@@ -360,7 +330,7 @@ python student/llama/train_v3.py --variant reasoning \
   --train_file data/teacher_gsm8k_train_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl \
   --val_file data/teacher_gsm8k_val_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl \
   --lr 2e-4 --r 16 --alpha 32 \
-  --output_dir outputs/llama3_1b_v4_promptmatch_r16_lr2e4
+  --output_dir outputs/llama/llama3_1b_v4_r16_lr2e4
 
 # Eval — base (before SFT)
 python evaluation/evaluate_gsm8k.py \
@@ -374,7 +344,7 @@ python evaluation/evaluate_gsm8k.py \
 python evaluation/evaluate_gsm8k.py \
   --backend transformers \
   --model meta-llama/Llama-3.2-1B-Instruct \
-  --adapter-path outputs/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter \
+  --adapter-path outputs/llama/llama3_1b_v4_r16_lr2e4/final_adapter \
   --stage after_sft \
   --max-input-tokens 1536 \
   --max-new-tokens 768

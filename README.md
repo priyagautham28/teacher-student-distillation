@@ -175,7 +175,7 @@ Qwen poster chart: [`qwen_accuracy_bars.png`](outputs/qwen3/analysis/qwen_accura
 | Avg inference latency | ~2.1 s / ex | ~5.2 s / ex | longer generations |
 | Peak GPU memory (eval) | ~2.4 GB | ~2.4 GB | similar |
 | `max_new_tokens` | 768 | 768 | team-matched student budget |
-| Adapter | none | `…/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` | QLoRA r=16, lr=2e-4 |
+| Adapter | none | `llama/llama3_1b_v4_r16_lr2e4` | QLoRA r=16, lr=2e-4 |
 
 **What changed:** distillation mainly taught the required tagged format and raised answer accuracy by **+6.5 pp** under matched `max_new_tokens=768`. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags.
 
