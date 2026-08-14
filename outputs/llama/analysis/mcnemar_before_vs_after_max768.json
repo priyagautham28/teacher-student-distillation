@@ -1,0 +1,21 @@
+{
+  "absolute_difference_b_minus_a": 0.06520090978013643,
+  "accuracy_a": 0.44275966641395,
+  "accuracy_b": 0.5079605761940864,
+  "both_correct": 421,
+  "both_wrong": 486,
+  "discordant_total": 412,
+  "label_a": "before_sft",
+  "label_b": "after_sft",
+  "method": "chi_square_continuity_corrected",
+  "n_records_a": 1319,
+  "n_records_b": 1319,
+  "only_a_correct": 163,
+  "only_b_correct": 249,
+  "p_value": 2.8185843826715135e-05,
+  "predictions_a": "eval_outputs/llama_team_proto_768/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_predictions.jsonl",
+  "predictions_b": "eval_outputs/llama_team_proto_768/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_predictions.jsonl",
+  "shared_n": 1319,
+  "significant_at_0_05": true,
+  "statistic": 17.53640776699029
+}

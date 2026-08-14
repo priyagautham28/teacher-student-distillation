@@ -5,7 +5,9 @@
 **Team:** Pick and Parse
 **Members:** Priyadarshini Rajmohan · Poojitha Alam · Mounika Akkenapragada
 
-This repository is the shared team repo for the full distillation pipeline: one teacher model and three independent student tracks. **This README covers the shared/root-level pieces and focuses mainly on the teacher model**, since that's owned here. Each student track will document setup and training in its own subfolder README when available.
+In this project, we investigate whether a large teacher model (Qwen3-14B-AWQ) can effectively transfer mathematical reasoning ability to compact open-weight language models using 4-bit QLoRA fine-tuning. Specifically, we compare multiple student architectures trained on the same teacher-generated reasoning demonstrations and analyze the trade-offs between reasoning accuracy, computational efficiency, and model size. Since different language model families employ distinct architectures and tokenization strategies, it is unclear whether they benefit equally from knowledge distillation. By evaluating multiple compact models under an identical training and evaluation framework, we aim to identify which architecture retains mathematical reasoning capability most effectively after distillation.
+
+**This README covers the shared/root-level pieces and focuses mainly on the teacher model**. Each student track will document setup and training in its own subfolder README.
 
 ## Team structure
 
@@ -30,53 +32,28 @@ Shared responsibilities: teacher prompts, dataset quality, hyperparameter protoc
 
 ![Project pipeline](teacher/project_pipeline.png)
 
-*Note: the diagram shows an earlier planning snapshot (2,000 train + 200 val). The current `gsm8k_teacher_v4` run samples **2,000 train + 500 val** and keeps **1,922 / 485** accepted SFT examples after validation — see [Data](#data).*
+*Note: the diagram shows an earlier planning snapshot (2,000 train + 200 val). The current `gsm8k_teacher_v4` run samples **2,000 train + 500 val** and keeps **1,922 / 485** accepted supervised fine-tuning (SFT) examples after validation — see [Data](#data).*
 
 ## Research question
 
 How effectively can knowledge distillation transfer mathematical reasoning capability from a large language model to compact language models while maintaining computational efficiency?
 
-- **Minimal goal:** Generate a teacher dataset from a GSM8K subset; fine-tune three compact students (Qwen3-1.7B, Gemma 3 1B, Llama 3.2 1B) with QLoRA; evaluate each against its own pretrained base on the official GSM8K test split.
+- **Minimal goal:** Generate a teacher dataset from a GSM8K subset; fine-tune three compact students (Qwen3-1.7B, Gemma 3 1B, Llama 3.2 1B) with Quantized Low-Rank Adaptation (QLoRA); evaluate each against its own pretrained base on the official GSM8K test split.
 - **Ambitious goal:** Compare student architectures under identical training conditions; measure efficiency gains from distillation; analyze how much of the teacher's performance each student retains; investigate whether architecture choice affects distillation effectiveness.
 - **Success criterion:** Reproducible adapters + metrics under a fixed protocol so the three student tracks are fairly comparable. A null or small gain is a valid scientific result.
 
 ## Executive Summary
 
-We distill mathematical reasoning from a large teacher (**Qwen3-14B-AWQ**) into compact students (~1–2B) so they can run locally with lower cost and better privacy.
+We distill mathematical reasoning from a large teacher (**Qwen3-14B-AWQ (Activation-aware Weight Quantization)**) into compact students (~1–2B) so they can run locally with lower cost and better privacy.
 
-**Shared pipeline:** generate verified GSM8K teacher CoTs → QLoRA fine-tune three students (Llama, Gemma, Qwen) under one eval protocol → compare base vs distilled vs teacher.
+**Shared pipeline:** generate verified GSM8K teacher chain-of-thought (CoT) traces → QLoRA fine-tune three students (Llama, Gemma, Qwen) under one eval protocol → compare base vs distilled vs teacher.
 
 **Results so far**
 - **Teacher ceiling:** **92.27%** exact-match on official GSM8K test.
-- **Llama-3.2-1B (complete):** **44.3% → 50.8%** (+6.5 pp; McNemar \(p \approx 2.8 \times 10^{-5}\); team-matched `max_new_tokens=768`); **~41.5 pp** still below the teacher.
-- **Qwen3-1.7B (complete):** **74.68% → 79.61%** (+4.93 pp; `max_new_tokens=768`).
+- **Llama-3.2-1B (complete):** **44.3% → 50.8%** (+6.5 percentage points (pp))
+- **Qwen3-1.7B (complete):** **74.68% → 79.61%** (+4.93 pp).
 - **Gemma 3 1B:** pending.
 - **Main takeaway:** distillation teaches the required format and recovers real but bounded accuracy gains; architecture, scale, and teacher-family match still shape the remaining gaps.
-
-
-
-## Key Findings & Results
-
-**Teacher (shared reference).** Qwen3-14B-AWQ reaches **92.27%** exact-match on the official GSM8K test set under the shared tagged-CoT protocol — the ceiling every student is measured against.
-
-**Llama-3.2-1B-Instruct (Priyadarshini track) — filled.**
-- Base (before SFT, bf16, v4 prompt, `max_new_tokens=768`): **44.3%** EM; valid format **~59%**; correct-and-valid **~29%**.
-- Best after QLoRA (`train_v3` on `gsm8k_teacher_v4` with the updated shared v4 prompt): **50.8%** EM (95% CI 48.1–53.5%); valid format **92.4%**; correct-and-valid **50.7%**.
-- **Distillation gain:** **+6.5 pp** absolute EM over the same student’s base under the shared evaluator (`max_new_tokens=768`).
-- **Gap to teacher:** **41.5 pp** remaining (92.27% − 50.8%) — most headroom is still open.
-- **What improved most:** format adherence (tagged `<reasoning>` / `<final_answer>`). Residual failures are mostly **valid-but-wrong math** (~649 incorrect; ~550 wrong-but-valid), not missing tags.
-- **What did *not* move the needle much:** moving from matched v3 concise CoTs (~**49.0%**) to detailed v4 one-op-per-step CoTs under the updated shared prompt (**48.9%** in the development run); LoRA **r=32** was also slightly worse than **r=16** (**48.7%**).
-- **Official team result:** the v4 model scores **50.8%** when both Llama base and distilled runs use the shared student generation budget (`max_new_tokens=768`). This matched-budget run is the team comparison result, not evidence that prompt matching alone caused the gain.
-- **Statistical significance (McNemar, paired n=1,319):** SFT gain \(p \approx 2.8 \times 10^{-5}\); gap to teacher \(p \approx 1.3 \times 10^{-113}\).
-  Artifacts: [`mcnemar_before_vs_after_max768.json`](outputs/llama/analysis/mcnemar_before_vs_after_max768.json) · [`mcnemar_student_vs_teacher_max768.json`](outputs/llama/analysis/mcnemar_student_vs_teacher_max768.json)
-- **Full Llama track docs** (why this student, figures, ablations, reproduce): [`student/llama/README.md`](student/llama/README.md)
-
-**Vs Meta’s published Llama-3.2-1B-Instruct GSM8K (44.4%, 8-shot CoT).** Our **50.8%** is higher but **not a strict apples-to-apples beat**: Meta’s number is the untuned Instruct model under 8-shot CoT; ours is **0-shot tagged CoT after GSM8K teacher distillation**. Fair claim: distillation + eval-matched prompts lifts this 1B student above both its own base and Meta’s reported 1B band under *our* protocol — not that we beat Meta’s training recipe.
-
-**Qwen3-1.7B:** complete at **74.68% → 79.61%**; see [`student/qwen3/README.md`](student/qwen3/README.md). **Gemma 3 1B:** pending.
-
-**Takeaway so far:** distillation clearly teaches the *protocol* (format + answer extraction) and recovers a meaningful but bounded accuracy gain on a ~1B Llama (**44.3% → 50.8%** at matched `768`); architecture/scale still dominate the remaining gap to the 14B teacher.
-
 
 ## Architectural differences across student models, and our expectations
 
@@ -86,8 +63,8 @@ The three students are meaningfully different in architecture and training histo
 |---|---|---|---|
 | Layers | 28 | 26 | 16 |
 | Hidden dim | 2048 | 1152 | 2048 |
-| Attention | GQA, 16 query heads / 8 key-value heads | Interleaved: 5 local sliding-window layers (1024-token window) per 1 global layer | Standard GQA every layer, 8 KV heads |
-| Vocab / tokenizer | BBPE, 151,669 tokens, 119 languages | Gemini 2.0 SentencePiece, 262,144 tokens | BPE, 128,256 tokens |
+| Attention | Grouped-query attention (GQA), 16 query heads / 8 key-value heads | Interleaved: 5 local sliding-window layers (1024-token window) per 1 global layer | Standard GQA every layer, 8 KV heads |
+| Vocab / tokenizer | Byte-level byte-pair encoding (BBPE), 151,669 tokens, 119 languages | Gemini 2.0 SentencePiece, 262,144 tokens | Byte-pair encoding (BPE), 128,256 tokens |
 | Native context | 32,768 tokens | 32,768 tokens (1B variant) | 131,072 tokens |
 | Pretraining scale | ~36 trillion tokens | ~2 trillion tokens (1B variant) | Derived from Llama 3.1's pretraining, not trained fresh at comparable scale |
 | How it was actually built | Standard large-scale dense pretraining, with an explicit built-in "thinking / non-thinking" reasoning mode | Pretrained, then post-trained with knowledge distillation from a larger instruct model | Built by *pruning* Llama 3.1 8B, then using knowledge distillation (logits from the 8B and 70B models as token-level targets) to recover performance lost during pruning |
@@ -133,12 +110,6 @@ Shared files consumed by every student track:
 - `data/teacher_gsm8k_train_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl`
 - `data/teacher_gsm8k_val_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_sft.jsonl`
 
-Audits / run metadata:
-- `audits/teacher_gsm8k_{train,val}_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full_*.jsonl`
-- `outputs/teacher_train_metrics/run_manifest_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full.json`
-- `outputs/teacher_train_metrics/run_metrics_qwen3_14b_awq_gsm8k_teacher_v4_434a9551e7_full.json`
-- `outputs/teacher_train_metrics/gsm8k_subset_indices_bf6906f85e.json`
-
 ## Evaluation
 
 Shared across the teacher and all three students — one evaluator, not duplicated per model, so comparisons stay fair:
@@ -163,9 +134,9 @@ Shared across the teacher and all three students — one evaluator, not duplicat
 
 All three student tracks use the same teacher-generated dataset, train/val/test splits, prompt protocol, evaluator, and scoring methodology. The Llama and Qwen student scoreboard runs both use `max_new_tokens=768`; the teacher uses 2048 and is treated as a reference ceiling.
 
-## Results
+## Results & key findings
 
-Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remains pending.
+Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remains pending. Students use `max_new_tokens=768`; the teacher uses 2048 and is a reference ceiling.
 
 | Model | Exact-match accuracy | Improvement over base | Gap to teacher | Peak GPU memory | Inference latency | Model size |
 |---|---|---|---|---|---|---|
@@ -177,13 +148,12 @@ Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remai
 | Qwen3-1.7B (base) | 74.68% | — | 17.59 pp | ~3.34 GiB | ~14.51 s / ex | ~1.72B |
 | Qwen3-1.7B (after QLoRA) | **79.61%** | **+4.93 pp** | **12.66 pp** | ~3.41 GiB | ~32.12 s / ex | ~1.74B + 0.369 GB adapter |
 
-Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`. 
-Llama before: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json`.
-Llama after: `outputs/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_metrics.json`.
-McNemar: `outputs/llama/analysis/mcnemar_before_vs_after_max768.json`, `outputs/llama/analysis/mcnemar_student_vs_teacher_max768.json`.
-Charts: `outputs/llama/analysis/llama_accuracy_bars_team_max768.png`, `outputs/llama/curves_89353a18_purple_gold.png`, `outputs/llama/analysis/error_analysis_max768/`.
-Qwen before: `outputs/qwen3/before_sft/Qwen_Qwen3-1.7B_before_sft_672fbe14_before_sft_metrics.json`.
-Qwen after: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json`.
+**Key findings**
+- Distillation mainly teaches the tagged protocol (format adherence) and recovers a real but bounded accuracy gain; most of the teacher gap stays open on a ~1B model.
+- **Llama-3.2-1B:** 44.3% → **50.8%** (+6.5 pp; McNemar \(p \approx 2.8 \times 10^{-5}\)). Valid format ~59% → ~92%. Residual failures are mostly **wrong math with valid tags**. ~41.5 pp still below the teacher (\(p \approx 1.3 \times 10^{-113}\)).
+- **Qwen3-1.7B:** 74.68% → **79.61%** (+4.93 pp; paired \(p = 4.56 \times 10^{-5}\)). Valid format 6.22% → 98.94%. Closes ~28% of its teacher gap; sits closest to the teacher.
+- **Gemma 3 1B:** pending.
+- Architecture expectations mostly hold so far: Qwen highest absolute accuracy (same family / more capacity); Llama is the harder cross-family case with a clear relative gain.
 
 ### Llama before vs after SFT (detail)
 | Metric | Before SFT | After SFT (best) | Change |
@@ -197,23 +167,14 @@ Qwen after: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sf
 | `max_new_tokens` | 768 | 768 | team-matched student budget |
 | Adapter | none | `…/llama3_1b_v4_promptmatch_r16_lr2e4/final_adapter` | QLoRA r=16, lr=2e-4 |
 
-**What changed:** distillation mainly taught the required tagged format (format ~59% → ~92%) and raised answer accuracy by **+6.5 pp** under matched `max_new_tokens=768`. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags. Before/after use the shared v4 one-op-per-step prompt.
-![Llama base vs after vs teacher at max 768 tokens](outputs/llama/analysis/llama_accuracy_bars_team_max768.png)
-*Same shared GSM8K test at `max_new_tokens=768`: base 44.3% → distilled 50.8% vs teacher 92.3%. Full Llama track: [`student/llama/README.md`](student/llama/README.md).*
+**What changed:** distillation mainly taught the required tagged format and raised answer accuracy by **+6.5 pp** under matched `max_new_tokens=768`. Remaining errors after SFT are mostly **wrong math with valid tags**, not missing tags.
 
-**Metrics files:**
-- Before: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json`
-- After: `outputs/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_metrics.json`
+![Llama exact-match before and after SFT at max 768 tokens](outputs/llama/llama_before_after_em_max768_small.png)
+*Llama GSM8K exact-match before vs after SFT (`max_new_tokens=768`): **44.3% → 50.8%** (+6.5 pp).*
 
-Llama-only depth (Meta card comparison, full ablation table, exact 50.8% recipe): [`student/llama/README.md`](student/llama/README.md).
+Metrics: [`before`](outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json) · [`after`](outputs/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_metrics.json) · [`mcnemar before/after`](outputs/llama/analysis/mcnemar_before_vs_after_max768.json) · [`mcnemar vs teacher`](outputs/llama/analysis/mcnemar_student_vs_teacher_max768.json).
 
-*Additional analysis:*
-- McNemar (Llama, max768): SFT gain \(p \approx 2.8 \times 10^{-5}\) (249 only-after vs 163 only-before correct); gap to teacher \(p \approx 1.3 \times 10^{-113}\) (564 only-teacher vs 17 only-student). Details: [`student/llama/README.md`](student/llama/README.md)
-- Qwen paired test: \(p = 4.56 \times 10^{-5}\) (157 fixes vs 92 regressions). Details: [`student/qwen3/README.md`](student/qwen3/README.md)
-- Gemma significance analysis: pending
-- Cross-model comparison chart (accuracy, latency, memory) across all three students
-- A few concrete example outputs (teacher trace vs. student trace) for the report/poster
-- Whether the ranked expectation above (Qwen3-1.7B highest accuracy, Llama largest relative gain, Gemma as the open question) held up against the actual results
+**Vs Meta’s published Llama-3.2-1B-Instruct GSM8K (44.4%, 8-shot CoT).** Our **50.8%** is higher but **not a strict apples-to-apples beat**: Meta’s number is the untuned Instruct model under 8-shot CoT; ours is **0-shot tagged CoT after GSM8K teacher distillation**. Fair claim: distillation under our tagged protocol lifts this 1B student above both its own base and Meta’s reported 1B band — not that we beat Meta’s training recipe.
 
 ### Qwen3-1.7B before vs after SFT (detail)
 
@@ -226,7 +187,7 @@ Llama-only depth (Meta card comparison, full ablation table, exact 50.8% recipe)
 | Avg inference latency | ~14.51 s / ex | ~32.12 s / ex | longer generations |
 | Peak GPU memory (eval) | ~3.34 GiB | ~3.41 GiB | similar |
 | `max_new_tokens` | 768 | 768 | team-matched student budget |
-| Adapter | none | [`qwen3_1_7b_gsm8k_qlora_v4`](outputs/qwen3/qwen3_1_7b_gsm8k_qlora_v4/) | QLoRA r=16, α=32 | 
+| Adapter | none | [`qwen3_1_7b_gsm8k_qlora_v4`](outputs/qwen3/qwen3_1_7b_gsm8k_qlora_v4/) | QLoRA r=16, α=32 |
 
 
 What changed: QLoRA distillation improved Qwen3-1.7B GSM8K exact-match accuracy from 74.68% to 79.61% (+4.93 percentage points) under the same before/after evaluation settings, including max_new_tokens=768. Structured-output adherence also improved substantially, with the valid-format rate increasing from 6.22% to 98.94%. The stricter correct-and-valid metric, which requires both a correct numerical answer and the requested output format, increased from 4.17% to 79.53%. For reference, the Qwen3-14B-AWQ teacher achieved 92.27% exact match; however, the teacher used a larger max_new_tokens=2048 generation budget, so the teacher score should be treated as a reference rather than a directly matched comparison.
@@ -235,6 +196,7 @@ What changed: QLoRA distillation improved Qwen3-1.7B GSM8K exact-match accuracy 
 *On the same official GSM8K test set, Qwen3-1.7B improved from 74.68% → 79.61% under matched `max_new_tokens=768` before/after settings. The Qwen3-14B-AWQ teacher reference achieved 92.27% using `max_new_tokens=2048`. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
 
 ![Qwen3 exact-match accuracy before vs after distillation](student/qwen3/figures/accuracy_with_ci.png)
+*Same shared GSM8K test at `max_new_tokens=768`: base 74.68% → distilled 79.61% vs teacher 92.27%. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
 
 **Metrics files:**
 
@@ -251,6 +213,7 @@ Qwen-only depth (training setup, figures, paired analysis, adapter artifacts): [
 - Detailed figures and training artifacts: [`student/qwen3/README.md`](student/qwen3/README.md)
 
 
+## Why the students land at different scores
 
 
 ### Qwen3-1.7B (~79%) — why it can sit much closer to the teacher
@@ -266,7 +229,7 @@ So ~79% is consistent with: *same-family + larger/deeper student + reasoning-ori
 
 1. **Cross-family transfer.** Teacher is Qwen; Llama uses a different **BPE** vocab (~128k vs Qwen’s ~152k). Same text becomes different tokens → harder to absorb teacher CoTs.
 2. **Shallower network.** Only **16 layers** (vs Qwen’s 28) — less depth for long arithmetic chains even with hidden size 2048.
-3. **Build history.** Made by **pruning Llama 3.1 8B** then KD-recovering — already a compressed model before our second distillation step.
+3. **Build history.** Made by **pruning Llama 3.1 8B** then recovering via knowledge distillation (KD) — already a compressed model before our second distillation step.
 4. **What our errors show.** After SFT, format is mostly solved (~92% valid); residual failures are **wrong math with valid tags** (hallucinated reasoning / arithmetic). That is a reasoning/capacity ceiling, not “forgot the tags.”
 5. **Still a real win.** Base 44.3% → 50.8% (+6.5 pp, significant, matched `768`). Distillation helps; it just doesn’t close most of the teacher gap (~41.5 pp left).
 
@@ -284,21 +247,7 @@ Likely drivers once the number lands:
 
 ## Conclusion
 
-**Headline (so far).** Distilling Qwen3-14B-AWQ GSM8K chain-of-thought into compact students is workable under a shared protocol. The teacher ceiling is **92.27%** EM. On the completed Llama-3.2-1B track (team-matched `max_new_tokens=768`), QLoRA distillation raises exact-match from **44.3% → 50.8%** (+**6.5** pp; McNemar \(p \approx 2.8 \times 10^{-5}\)), while a **~41.5** pp gap to the teacher remains significant (\(p \approx 1.3 \times 10^{-113}\)).
-
-**What transferred.** Gains are real but bounded: the student mainly learns the tagged protocol (format ~59% → ~92%) and recovers modest answer accuracy. Residual errors are mostly valid-but-wrong math — a reasoning/capacity limit on a cross-family ~1B model, not missing tags.
-
-**What mattered for Llama.** SFT reaches ~49% in development ablations; the official matched-budget v4 result is **50.8%**. Moving from matched v3 concise traces to v4 detailed traces plus the updated shared prompt did not produce a large development gain, and larger LoRA rank (r=32) did not help. Details: [`student/llama/README.md`](student/llama/README.md).
-
-**What mattered for Gemma.** Pending the teammate’s official shared-evaluator results.
-
-**What mattered for Qwen.** QLoRA distillation raises exact-match **74.68% → 79.61%** (+4.93 pp), fixes 157 questions while regressing on 92, and closes ~28% of its original teacher gap. Same-family transfer and greater student capacity are plausible contributors, but the result does not isolate either cause. Details: [`student/qwen3/README.md`](student/qwen3/README.md).
-
-**Architecture expectations.** Qwen3-1.7B currently has the highest student accuracy, consistent with the same-family / scale hypothesis; Llama remains the harder cross-family case with a clear relative gain. Gemma is still pending.
-
-**Efficiency / privacy motivation.** The distilled Llama student stays light at eval (~2.4 GB) and is practical for local inference, but latency rises with longer CoTs (~2.1 → ~5.2 s/ex). Compact distilled models are viable as privacy-friendly assistants for this task band — not drop-in replacements for the 14B teacher.
-
-**Limitations.** Training on a 2,000-example teacher subset; teacher errors can propagate; Gemma is still pending; single-teacher, single-benchmark (GSM8K); final student results come from one selected run per track rather than averages across multiple seeds.
+Distilling Qwen3-14B-AWQ GSM8K CoTs into compact students works under a shared protocol, but only partway. The completed tracks show real gains — Llama **44.3% → 50.8%** (+6.5 pp) and Qwen **74.68% → 79.61%** (+4.93 pp) — driven mainly by learning the tagged format, with modest answer-accuracy transfer. Most of the gap to the **92.27%** teacher remains: widest for cross-family Llama (~41.5 pp), narrower for same-family Qwen (~12.7 pp). Distilled students stay light at eval (~2.4–3.4 GB) and are practical as local, privacy-friendly assistants for this task band — not drop-in replacements for the 14B teacher. Caveats: 2,000-example teacher subset; single teacher and benchmark; one selected run per track; Gemma still pending.
 
 ## Repository structure (current)
 
