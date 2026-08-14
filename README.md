@@ -231,7 +231,8 @@ Llama-only depth (Meta card comparison, full ablation table, exact 50.8% recipe)
 
 What changed: QLoRA distillation improved Qwen3-1.7B GSM8K exact-match accuracy from 74.68% to 79.61% (+4.93 percentage points) under the same before/after evaluation settings, including max_new_tokens=768. Structured-output adherence also improved substantially, with the valid-format rate increasing from 6.22% to 98.94%. The stricter correct-and-valid metric, which requires both a correct numerical answer and the requested output format, increased from 4.17% to 79.53%. For reference, the Qwen3-14B-AWQ teacher achieved 92.27% exact match; however, the teacher used a larger max_new_tokens=2048 generation budget, so the teacher score should be treated as a reference rather than a directly matched comparison.
 
-*Same shared GSM8K test at `max_new_tokens=768`: base 74.68% → distilled 79.61% vs teacher 92.27%. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
+
+*On the same official GSM8K test set, Qwen3-1.7B improved from 74.68% → 79.61% under matched `max_new_tokens=768` before/after settings. The Qwen3-14B-AWQ teacher reference achieved 92.27% using `max_new_tokens=2048`. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
 
 ![Qwen3 exact-match accuracy before vs after distillation](student/qwen3/figures/accuracy_with_ci.png)
 
@@ -244,10 +245,11 @@ Qwen-only depth (training setup, figures, paired analysis, adapter artifacts): [
 
 *Additional analysis:*
 
-- Qwen paired McNemar test: \(p = 4.56 \times 10^{-5}\) (157 fixes vs 92 regressions).
-- Teacher-gap analysis: distilled Qwen remains **12.66 pp** below Qwen3-14B-AWQ.
+- Qwen before-vs.-after paired McNemar test (continuity-corrected): \(p \approx 5.00 \times 10^{-5}\) (157 fixes vs. 92 regressions).
+- Teacher-gap analysis: distilled Qwen remains **12.66 pp** below the Qwen3-14B-AWQ teacher reference.
 - Structured-output transfer: valid-format rate **6.22% → 98.94%**.
 - Detailed figures and training artifacts: [`student/qwen3/README.md`](student/qwen3/README.md)
+
 
 
 
