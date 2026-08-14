@@ -149,11 +149,21 @@ Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remai
 | Qwen3-1.7B (after QLoRA) | **79.61%** | **+4.93 pp** | **12.66 pp** | ~3.41 GiB | ~32.12 s / ex | ~1.74B + 0.369 GB adapter |
 
 **Key findings**
-- Distillation mainly teaches the tagged protocol (format adherence) and recovers a real but bounded accuracy gain; most of the teacher gap stays open on a ~1B model.
+- Distillation improves both structured-output adherence and mathematical accuracy, while substantial gaps to the teacher reference remain.
 - **Llama-3.2-1B:** 44.3% → **50.8%** (+6.5 pp; McNemar \(p \approx 2.8 \times 10^{-5}\)). Valid format ~59% → ~92%. Residual failures are mostly **wrong math with valid tags**. ~41.5 pp still below the teacher (\(p \approx 1.3 \times 10^{-113}\)).
-- **Qwen3-1.7B:** 74.68% → **79.61%** (+4.93 pp; paired \(p = 4.56 \times 10^{-5}\)). Valid format 6.22% → 98.94%. Closes ~28% of its teacher gap; sits closest to the teacher.
+- **Qwen3-1.7B:** 74.68% → **79.61%** (+4.93 pp; continuity-corrected paired McNemar \(p \approx 5.00 \times 10^{-5}\)). Valid format 6.22% → 98.94%. Closes ~28% of its original teacher gap and currently sits closest to the teacher among the completed student tracks.
 - **Gemma 3 1B:** pending.
-- Architecture expectations mostly hold so far: Qwen highest absolute accuracy (same family / more capacity); Llama is the harder cross-family case with a clear relative gain.
+
+Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`.  
+Llama before: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json`.  
+Llama after: `outputs/llama/after_sft/meta-llama_Llama-3.2-1B-Instruct_after_sft_35f35fce_max768_metrics.json`.  
+Llama McNemar: `outputs/llama/analysis/mcnemar_before_vs_after_max768.json`, `outputs/llama/analysis/mcnemar_student_vs_teacher_max768.json`.  
+Charts: `outputs/llama/analysis/llama_accuracy_bars_team_max768.png`, `outputs/llama/curves_89353a18_purple_gold.png`, `outputs/llama/analysis/error_analysis_max768/`.  
+Qwen before: `outputs/qwen3/before_sft/Qwen_Qwen3-1.7B_before_sft_672fbe14_before_sft_metrics.json`.  
+Qwen after: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json`.  
+Qwen McNemar: [`mcnemar_before_vs_after.json`](outputs/qwen3/analysis/mcnemar_before_vs_after.json).  
+Qwen comparison summary: [`qwen_compare_summary.csv`](outputs/qwen3/analysis/qwen_compare_summary.csv).  
+Qwen poster chart: [`qwen_accuracy_bars.png`](outputs/qwen3/analysis/qwen_accuracy_bars.png).
 
 ### Llama before vs after SFT (detail)
 | Metric | Before SFT | After SFT (best) | Change |
@@ -208,8 +218,11 @@ Qwen-only depth (training setup, figures, paired analysis, adapter artifacts): [
 *Additional analysis:*
 
 - Qwen before-vs.-after paired McNemar test (continuity-corrected): \(p \approx 5.00 \times 10^{-5}\) (157 fixes vs. 92 regressions).
+  Artifact: [`mcnemar_before_vs_after.json`](outputs/qwen3/analysis/mcnemar_before_vs_after.json)
 - Teacher-gap analysis: distilled Qwen remains **12.66 pp** below the Qwen3-14B-AWQ teacher reference.
+  Summary: [`qwen_compare_summary.csv`](outputs/qwen3/analysis/qwen_compare_summary.csv)
 - Structured-output transfer: valid-format rate **6.22% → 98.94%**.
+  Poster accuracy chart: [`qwen_accuracy_bars.png`](outputs/qwen3/analysis/qwen_accuracy_bars.png)
 - Detailed figures and training artifacts: [`student/qwen3/README.md`](student/qwen3/README.md)
 
 
