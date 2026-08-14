@@ -16,10 +16,10 @@ import argparse
 import json
 import re
 import shutil
-import sys
 import time
 from pathlib import Path
-import generate__teacher_gsm8k as gen
+
+import generate_teacher_gsm8k as gen
 
 DATA_DIR = Path("data_final")
 SLUG = "qwen3_14b_awq_gsm8k_teacher_v3_9cbf703286_full"
@@ -27,6 +27,7 @@ SLUG = "qwen3_14b_awq_gsm8k_teacher_v3_9cbf703286_full"
 # Proposed looser calc check (allows $ between operator and digit).
 # STRICT is taken from gen.CALCULATION_EVIDENCE_PATTERN at runtime.
 LOOSE_DOLLAR = re.compile(r"\d\s*[+\-*/=×÷]\s*\$?\s*\d")
+
 
 def is_dollar_false_reject(row: dict, strict: re.Pattern) -> bool:
     errs = set(row.get("validation_errors") or [])
@@ -46,7 +47,7 @@ def build_accepted_from_reject(gen, row: dict, validation: dict) -> dict:
     final_answer = validation["teacher_final_answer"]
     student_target = gen.create_student_target(reasoning, final_answer)
 
-    accepted = dict(row)  # keep lifetime/usage/attempt history
+    accepted = dict(row)
     accepted.update(
         {
             "status": "accepted",
@@ -116,7 +117,6 @@ def rescue_role(gen, role: str, dry_run: bool) -> dict:
     rescued = []
     skipped = []
     for row in candidates:
-        # Must pass the real validator with $? pattern
         cur = revalidate(gen, row, strict)
         loose = revalidate(gen, row, LOOSE_DOLLAR)
         if cur["is_valid"]:
@@ -144,7 +144,6 @@ def rescue_role(gen, role: str, dry_run: bool) -> dict:
             "metrics": None,
         }
 
-    # Backup then append accepted events + rebuild snapshots/metrics
     backup_dir = DATA_DIR / f"backup_before_dollar_rescue_{int(time.time())}"
     backup_dir.mkdir(parents=True, exist_ok=True)
     for path in p.values():
@@ -179,7 +178,6 @@ def rewrite_run_metrics(gen, train_metrics, val_metrics) -> None:
     val_sft = paths_for("val")["sft"]
     fingerprint = gen.compute_dataset_fingerprint(train_sft, val_sft)
     out = DATA_DIR / f"run_metrics_{SLUG}.json"
-    # backup
     if out.exists():
         shutil.copy2(out, out.with_suffix(out.suffix + ".pre_rescue.bak"))
     gen.write_run_metrics(

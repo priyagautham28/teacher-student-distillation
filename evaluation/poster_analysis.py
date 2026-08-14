@@ -1,59 +1,49 @@
-# -*- coding: utf-8 -*-
-"""Post-hoc statistical analysis and reporting, run AFTER predictions exist.
+#!/usr/bin/env python3
+"""Post-hoc statistical analysis for poster/report claims (CPU-only).
 
-This file is deliberately separate from evaluate_gsm8k.py. Everything here
-is "poster polish": it doesn't generate any new predictions and doesn't
-touch model weights, it only reads *_predictions.jsonl and *_summary.csv
-files that evaluate_gsm8k.py already produced, and turns them into stronger,
-more defensible claims for the report/poster.
+Reads existing *_predictions.jsonl / *_metrics.json / *_summary.csv from
+shared evaluate.py runs. Does not load models or use the GPU.
 
-Two independent things live in this file:
+Commands
+--------
+1. compare  — McNemar's test on paired correct/wrong outcomes
+2. table    — build a before / after / teacher summary CSV from metrics.json
+3. merge    — combine teammates' summary.csv files (dedupe teacher row)
 
-1. McNemar's test (mcnemar_test / run_mcnemar_from_paths)
-   Answers: "is this accuracy difference between two conditions on the
-   SAME test set real, or could it just be noise?" This is the correct
-   test here specifically because every model in this project is
-   evaluated on the identical, fixed GSM8K test set (see
-   evaluate_gsm8k.py's DATASET_SPLIT="test" and its deterministic
-   load_gsm8k_examples()) -- that makes the two sets of outcomes PAIRED,
-   not independent samples, and McNemar's test is the standard test for
-   paired binary (correct/wrong) outcomes. A plain two-sample test would
-   be the wrong tool here.
+Examples (paths match this machine's Llama track)
+-------------------------------------------------
+# Did SFT help?
+python poster_analysis.py compare \\
+  --predictions-a eval_outputs/llama_before_sft_rerun/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_predictions.jsonl \\
+  --predictions-b eval_outputs/meta-llama_Llama-3.2-1B-Instruct_after_sft_10a84857_predictions.jsonl \\
+  --label-a before_sft --label-b after_sft \\
+  --output eval_outputs/mcnemar_before_vs_after.json
 
-   Two use cases, same underlying function:
-     - base_llama_predictions.jsonl  vs  after_sft_llama_predictions.jsonl
-       ("did SFT actually help, or is the improvement within noise?")
-     - teacher_predictions.jsonl     vs  after_sft_llama_predictions.jsonl
-       ("is the student's remaining gap to the teacher a real gap, or
-       could it be explained by test-set noise?")
+# Is the gap to the teacher real?
+python poster_analysis.py compare \\
+  --predictions-a eval_outputs/meta-llama_Llama-3.2-1B-Instruct_after_sft_10a84857_predictions.jsonl \\
+  --predictions-b ../cot_faithfulness/eval_outputs_v2/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_predictions.jsonl \\
+  --label-a after_sft --label-b teacher \\
+  --output eval_outputs/mcnemar_student_vs_teacher.json
 
-2. Team summary merge (merge_team_summaries)
-   Combines the three teammates' individual summary.csv files (Qwen
-   student, Llama student, Gemma/other student -- each produced by their
-   own evaluate_gsm8k.py --compare-base run) into one team-wide comparison
-   table for the poster. Handles the one real gotcha: if every teammate's
-   --compare-base run was given --teacher-metrics-path, the teacher's row
-   would otherwise appear THREE times when the files are combined -- this
-   keeps it once.
+# Poster numbers table from existing metrics (no re-eval)
+python poster_analysis.py table \\
+  --before-metrics eval_outputs/llama_before_sft_rerun/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json \\
+  --after-metrics eval_outputs/meta-llama_Llama-3.2-1B-Instruct_after_sft_10a84857_metrics.json \\
+  --teacher-metrics ../cot_faithfulness/eval_outputs_v2/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json \\
+  --output eval_outputs/llama_compare_summary.csv
 
-Usage
------
-# McNemar: did SFT help this student?
-python poster_analysis.py compare \
-    --predictions-a eval_outputs/llama_before_sft_predictions.jsonl \
-    --predictions-b eval_outputs/llama_after_sft_predictions.jsonl \
-    --label-a before_sft --label-b after_sft
+# UW purple/gold accuracy bar chart for the poster
+python poster_analysis.py plot \\
+  --before-metrics eval_outputs/llama_before_sft_rerun/meta-llama_Llama-3.2-1B-Instruct_before_sft_4a8500c9_rerun1_metrics.json \\
+  --after-metrics eval_outputs/meta-llama_Llama-3.2-1B-Instruct_after_sft_10a84857_metrics.json \\
+  --teacher-metrics ../cot_faithfulness/eval_outputs_v2/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json \\
+  --output eval_outputs/llama_accuracy_bars_purple_gold.png
 
-# McNemar: is the student's gap to the teacher real?
-python poster_analysis.py compare \
-    --predictions-a eval_outputs/llama_after_sft_predictions.jsonl \
-    --predictions-b eval_outputs/qwen_teacher_predictions.jsonl \
-    --label-a after_sft --label-b teacher
-
-# Merge all three teammates' summary.csv into one poster table
-python poster_analysis.py merge \
-    --summaries eval_outputs/qwen_summary.csv eval_outputs/llama_summary.csv eval_outputs/gemma_summary.csv \
-    --output eval_outputs/team_comparison_summary.csv
+# Merge teammate summary CSVs
+python poster_analysis.py merge \\
+  --summaries path/to/qwen_summary.csv path/to/llama_summary.csv path/to/gemma_summary.csv \\
+  --output eval_outputs/team_comparison_summary.csv
 """
 
 from __future__ import annotations
@@ -65,10 +55,15 @@ from math import comb, erfc, sqrt
 from pathlib import Path
 from typing import Any, Optional
 
-# Reused directly from the shared evaluator instead of reimplemented, so
-# this file can never silently drift out of sync with how predictions are
-# actually written or how the CSV schema is defined.
-from evaluate_gsm8k import SUMMARY_CSV_FIELDS, read_jsonl
+# Shared with evaluate.py so CSV schema / JSONL parsing cannot drift.
+from evaluate import SUMMARY_CSV_FIELDS, read_jsonl, summary_row_from_metrics
+
+# UW brand — purple + mid gold only (same hexes as plot_v3 / plot_wrong_ans)
+UW_PURPLE = "#4B2E83"
+UW_HUSKY_PURPLE = "#32006E"
+UW_GOLD = "#E3BF42"
+UW_HERITAGE_GOLD = "#85754D"
+UW_GRAY = "#666666"
 
 
 # =============================================================================
@@ -77,23 +72,7 @@ from evaluate_gsm8k import SUMMARY_CSV_FIELDS, read_jsonl
 
 
 def _binomial_two_sided_p(k: int, n: int, p: float = 0.5) -> float:
-    """Exact two-sided binomial test p-value for k successes out of n trials
-    under the null hypothesis that the true success probability is p.
-
-    Used here as the exact form of McNemar's test: under the null hypothesis
-    that condition A and condition B are equally likely to be the one that's
-    "right when the other is wrong", each discordant pair is like an
-    independent coin flip with p=0.5. This computes, across every possible
-    outcome count i from 0 to n, the two-sided p-value as the total
-    probability mass of all outcomes at least as extreme as the one actually
-    observed (i.e. every outcome whose probability is <= the observed
-    outcome's probability, which is the standard symmetric definition of a
-    two-sided exact test).
-
-    Preferred over the chi-square approximation used below when n = b + c
-    is small, since the chi-square approximation is known to be unreliable
-    once the discordant-pair count drops below roughly 25.
-    """
+    """Exact two-sided binomial p-value (symmetric: sum mass with P(i) <= P(k))."""
     if n == 0:
         return 1.0
 
@@ -101,8 +80,6 @@ def _binomial_two_sided_p(k: int, n: int, p: float = 0.5) -> float:
         comb(n, i) * (p**i) * ((1 - p) ** (n - i)) for i in range(n + 1)
     ]
     observed_probability = probabilities[k]
-    # Small float tolerance so the observed outcome's own probability mass
-    # is reliably included in the sum despite floating-point rounding.
     return min(
         1.0,
         sum(
@@ -120,46 +97,7 @@ def mcnemar_test(
     label_a: str = "condition_a",
     label_b: str = "condition_b",
 ) -> dict[str, Any]:
-    """McNemar's test on paired correct/incorrect outcomes from two
-    evaluation runs over the SAME test set.
-
-    Why this test and not a simpler comparison: records_a and records_b are
-    not two independent samples, they are two different models' answers to
-    the identical set of questions (matched by problem_id). That pairing is
-    exactly what McNemar's test is designed for -- it only looks at the
-    examples where the two conditions DISAGREE (one got it right, the other
-    didn't); examples where both conditions agree (both right, or both
-    wrong) carry no information about which condition is actually better,
-    so they are correctly excluded from the test statistic.
-
-    Parameters
-    ----------
-    records_a, records_b:
-        Lists of prediction records as read from a *_predictions.jsonl file
-        (via read_jsonl). Each record must have "problem_id" and
-        "is_correct".
-    label_a, label_b:
-        Human-readable names for the two conditions, carried through into
-        the returned dict purely for readability in printed/saved output.
-
-    Returns
-    -------
-    A dict containing:
-        - shared_n: how many problem_ids were present in both inputs and
-          therefore actually usable for the test
-        - only_a_correct: count where A was correct and B was wrong
-        - only_b_correct: count where B was correct and A was wrong
-        - both_correct / both_wrong: agreement counts (not used in the
-          test itself, included for transparency)
-        - method: "exact_binomial" or "chi_square_continuity_corrected",
-          whichever was actually used
-        - statistic: the chi-square statistic (only meaningful when
-          method is chi_square_continuity_corrected; None otherwise)
-        - p_value: two-sided p-value under the null hypothesis that A and B
-          are equally likely to be the one that's correct on a discordant
-          pair
-        - significant_at_0_05: convenience boolean, p_value < 0.05
-    """
+    """McNemar's test on paired correct/incorrect outcomes (same problem_ids)."""
     correctness_a = {
         str(record["problem_id"]): bool(record.get("is_correct"))
         for record in records_a
@@ -186,12 +124,19 @@ def mcnemar_test(
     )
 
     discordant_total = only_a_correct + only_b_correct
+    n_shared = len(shared_ids)
+    accuracy_a = (
+        (both_correct + only_a_correct) / n_shared if n_shared else None
+    )
+    accuracy_b = (
+        (both_correct + only_b_correct) / n_shared if n_shared else None
+    )
+    absolute_difference = (
+        None
+        if accuracy_a is None or accuracy_b is None
+        else accuracy_b - accuracy_a
+    )
 
-    # Rule of thumb from the McNemar's test literature: below ~25 discordant
-    # pairs, the chi-square approximation's sampling distribution is not
-    # reliably close enough to the true distribution to trust; use the
-    # exact binomial form instead. At or above 25, the chi-square form is
-    # standard practice and slightly easier for a reader to recognize.
     if discordant_total == 0:
         method = "exact_binomial"
         statistic = None
@@ -204,19 +149,18 @@ def mcnemar_test(
         )
     else:
         method = "chi_square_continuity_corrected"
-        # Yates' continuity correction: subtracting 1 from |b - c| before
-        # squaring compensates for approximating a discrete distribution
-        # (the binomial) with a continuous one (chi-square).
         statistic = (abs(only_a_correct - only_b_correct) - 1) ** 2 / discordant_total
-        # Survival function of a chi-square distribution with 1 degree of
-        # freedom, computed directly from the standard normal complementary
-        # error function -- avoids needing scipy for a one-line formula.
         p_value = erfc(sqrt(statistic / 2))
 
     return {
         "label_a": label_a,
         "label_b": label_b,
-        "shared_n": len(shared_ids),
+        "n_records_a": len(correctness_a),
+        "n_records_b": len(correctness_b),
+        "shared_n": n_shared,
+        "accuracy_a": accuracy_a,
+        "accuracy_b": accuracy_b,
+        "absolute_difference_b_minus_a": absolute_difference,
         "both_correct": both_correct,
         "both_wrong": both_wrong,
         "only_a_correct": only_a_correct,
@@ -237,11 +181,6 @@ def run_mcnemar_from_paths(
     label_b: str,
     output_path: Optional[Path] = None,
 ) -> dict[str, Any]:
-    """Load two predictions.jsonl files (via the shared read_jsonl helper,
-    so parsing behaves identically to how evaluate_gsm8k.py itself reads
-    them) and run mcnemar_test on them. Prints a plain-language summary and,
-    if output_path is given, also saves the full result as JSON.
-    """
     records_a = read_jsonl(predictions_path_a)
     records_b = read_jsonl(predictions_path_b)
 
@@ -251,15 +190,33 @@ def run_mcnemar_from_paths(
         raise ValueError(f"No records found in {predictions_path_b}")
 
     result = mcnemar_test(records_a, records_b, label_a=label_a, label_b=label_b)
+    result["predictions_a"] = str(predictions_path_a)
+    result["predictions_b"] = str(predictions_path_b)
+
+    if result["shared_n"] < min(result["n_records_a"], result["n_records_b"]):
+        print(
+            "WARNING: not all problem_ids overlap; McNemar uses the intersection only "
+            f"(shared={result['shared_n']}, "
+            f"a={result['n_records_a']}, b={result['n_records_b']})."
+        )
 
     print(f"\nMcNemar's test: {label_a} vs. {label_b}")
     print(f"  Shared test examples:        {result['shared_n']}")
+    if result["accuracy_a"] is not None and result["accuracy_b"] is not None:
+        print(f"  Accuracy {label_a}:            {result['accuracy_a']:.4f}")
+        print(f"  Accuracy {label_b}:            {result['accuracy_b']:.4f}")
+        print(
+            f"  Difference ({label_b} - {label_a}): "
+            f"{result['absolute_difference_b_minus_a']:+.4f}"
+        )
     print(f"  Both correct:                {result['both_correct']}")
     print(f"  Both wrong:                  {result['both_wrong']}")
     print(f"  Only {label_a} correct:      {result['only_a_correct']}")
     print(f"  Only {label_b} correct:      {result['only_b_correct']}")
     print(f"  Method:                      {result['method']}")
-    print(f"  p-value:                     {result['p_value']:.4f}")
+    if result["statistic"] is not None:
+        print(f"  Chi-square statistic:        {result['statistic']:.4f}")
+    print(f"  p-value:                     {result['p_value']:.6g}")
     if result["significant_at_0_05"]:
         print(
             f"  -> Significant at p < 0.05: the difference between "
@@ -284,37 +241,96 @@ def run_mcnemar_from_paths(
 
 
 # =============================================================================
-# 2. TEAM SUMMARY MERGE
+# 2. METRICS TABLE (no re-eval)
+# =============================================================================
+
+
+def _load_metrics(path: Path) -> dict[str, Any]:
+    metrics = json.loads(path.read_text(encoding="utf-8"))
+    if "exact_match_accuracy" not in metrics:
+        raise ValueError(f"{path} missing exact_match_accuracy")
+    return metrics
+
+
+def write_compare_table(
+    *,
+    before_metrics_path: Path,
+    after_metrics_path: Path,
+    teacher_metrics_path: Optional[Path],
+    output_path: Path,
+) -> None:
+    """Build a compare-base-style summary.csv from existing metrics.json files."""
+    before = _load_metrics(before_metrics_path)
+    after = _load_metrics(after_metrics_path)
+    teacher = (
+        _load_metrics(teacher_metrics_path) if teacher_metrics_path is not None else None
+    )
+
+    before_acc = float(before["exact_match_accuracy"])
+    after_acc = float(after["exact_match_accuracy"])
+    teacher_acc = (
+        float(teacher["exact_match_accuracy"]) if teacher is not None else None
+    )
+
+    absolute_improvement = after_acc - before_acc
+    relative_improvement = (
+        absolute_improvement / before_acc if before_acc > 0 else None
+    )
+    gap_to_teacher = (
+        teacher_acc - after_acc if teacher_acc is not None else None
+    )
+
+    rows: list[dict[str, Any]] = []
+    if teacher is not None:
+        rows.append(summary_row_from_metrics(teacher, condition="teacher"))
+    rows.append(summary_row_from_metrics(before, condition="before_sft"))
+    rows.append(
+        summary_row_from_metrics(
+            after,
+            condition="after_sft",
+            absolute_improvement_over_before=absolute_improvement,
+            relative_improvement_over_before=relative_improvement,
+            gap_to_teacher_accuracy=gap_to_teacher,
+        )
+    )
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    with output_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=list(SUMMARY_CSV_FIELDS))
+        writer.writeheader()
+        for row in rows:
+            writer.writerow({field: row.get(field) for field in SUMMARY_CSV_FIELDS})
+
+    print(f"\nComparison table -> {output_path}")
+    print(f"  before_sft:  {before_acc:.4f}")
+    print(f"  after_sft:   {after_acc:.4f}")
+    print(f"  improvement: {absolute_improvement:+.4f}")
+    if relative_improvement is not None:
+        print(f"  relative:    {relative_improvement:.2%}")
+    if teacher_acc is not None and gap_to_teacher is not None:
+        print(f"  teacher:     {teacher_acc:.4f}")
+        print(f"  gap:         {gap_to_teacher:.4f}")
+
+
+# =============================================================================
+# 3. TEAM SUMMARY MERGE
 # =============================================================================
 
 
 def merge_team_summaries(paths: list[Path], output_path: Path) -> None:
-    """Combine multiple teammates' summary.csv files (all produced by the
-    same evaluate_gsm8k.py, so they share the same SUMMARY_CSV_FIELDS
-    schema) into one team-wide comparison table for the poster.
-
-    The one real gotcha this handles: if every teammate's --compare-base run
-    was given --teacher-metrics-path (as this project's workflow expects),
-    each of their individual summary.csv files independently embeds a copy
-    of the teacher's row. Concatenating three such files naively would give
-    the merged table three duplicate teacher rows instead of one. This scans
-    every input file's "condition" column and keeps only the FIRST row
-    where condition == "teacher", discarding the rest, regardless of which
-    teammate's file it came from.
-
-    Every kept row gets a new "source_file" column so it's still possible
-    to trace which teammate's evaluation a given non-teacher row came from.
-    """
+    """Merge teammate summary.csv files; keep only the first teacher row."""
     seen_teacher_row = False
     combined_rows: list[dict[str, Any]] = []
 
     for path in paths:
+        if not path.exists():
+            raise FileNotFoundError(path)
         with path.open("r", encoding="utf-8", newline="") as handle:
             reader = csv.DictReader(handle)
             for row in reader:
                 if row.get("condition") == "teacher":
                     if seen_teacher_row:
-                        continue  # Skip every teacher row after the first one seen.
+                        continue
                     seen_teacher_row = True
                 row["source_file"] = path.stem
                 combined_rows.append(row)
@@ -328,64 +344,119 @@ def merge_team_summaries(paths: list[Path], output_path: Path) -> None:
             writer.writerow({field: row.get(field) for field in fieldnames})
 
     print(f"Merged {len(paths)} summary file(s) into {output_path}")
-    print(f"  Total rows: {len(combined_rows)} (teacher row deduplicated to 1 if present)")
+    print(
+        f"  Total rows: {len(combined_rows)} "
+        f"(teacher row deduplicated to 1 if present)"
+    )
 
 
 # =============================================================================
-# 3. COMMAND-LINE INTERFACE
+# 4. POSTER BAR CHART (UW purple / gold)
+# =============================================================================
+
+
+def plot_accuracy_bars(
+    *,
+    before_metrics_path: Path,
+    after_metrics_path: Path,
+    teacher_metrics_path: Optional[Path],
+    output_path: Path,
+    title: str = "GSM8K exact-match accuracy",
+) -> None:
+    """Vertical bar chart: before / after / teacher — same purple/gold as plot_v3."""
+    import matplotlib.pyplot as plt
+
+    before = _load_metrics(before_metrics_path)
+    after = _load_metrics(after_metrics_path)
+    labels = ["Before SFT", "After SFT"]
+    values = [
+        float(before["exact_match_accuracy"]),
+        float(after["exact_match_accuracy"]),
+    ]
+    # Same purple as plot_v3 train/exact-match; gold only for teacher (like val)
+    colors = [UW_PURPLE, UW_PURPLE]
+
+    if teacher_metrics_path is not None:
+        teacher = _load_metrics(teacher_metrics_path)
+        labels.append("Teacher")
+        values.append(float(teacher["exact_match_accuracy"]))
+        colors.append(UW_GOLD)
+
+    fig, ax = plt.subplots(figsize=(7.5, 5))
+    bars = ax.bar(labels, values, color=colors, width=0.65)
+    ax.set_ylim(0, 1.05)
+    ax.set_ylabel("Exact-match accuracy", color=UW_GRAY)
+    ax.set_title(title, color=UW_PURPLE, fontsize=13, pad=12)
+    ax.tick_params(colors=UW_GRAY)
+    ax.yaxis.grid(True, alpha=0.25, color=UW_GRAY)
+    ax.set_axisbelow(True)
+    for spine in ax.spines.values():
+        spine.set_color(UW_GOLD)
+    ax.bar_label(bars, labels=[f"{v:.1%}" for v in values], padding=4, color=UW_GRAY)
+    fig.tight_layout()
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    fig.savefig(output_path, dpi=200, facecolor="white")
+    print(f"Saved accuracy chart -> {output_path}")
+
+
+# =============================================================================
+# 5. CLI
 # =============================================================================
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description=(
-            "Post-hoc statistical analysis for the reasoning-distillation "
-            "project: McNemar significance testing and team summary merging. "
-            "Run this AFTER evaluate_gsm8k.py has produced predictions."
+            "Post-hoc analysis for reasoning-distillation poster/report: "
+            "McNemar tests, metrics tables, UW-branded charts, and team merge. "
+            "Run AFTER evaluate.py has produced predictions/metrics."
         )
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     compare_parser = subparsers.add_parser(
         "compare",
-        help=(
-            "Run McNemar's test between two predictions.jsonl files from "
-            "the same test set (base vs. after-SFT, or student vs. teacher)."
-        ),
+        help="McNemar test between two predictions.jsonl files (same test set).",
     )
-    compare_parser.add_argument(
-        "--predictions-a", type=Path, required=True, help="Path to the first predictions.jsonl"
+    compare_parser.add_argument("--predictions-a", type=Path, required=True)
+    compare_parser.add_argument("--predictions-b", type=Path, required=True)
+    compare_parser.add_argument("--label-a", default="condition_a")
+    compare_parser.add_argument("--label-b", default="condition_b")
+    compare_parser.add_argument("--output", type=Path, default=None)
+
+    table_parser = subparsers.add_parser(
+        "table",
+        help="Build before/after/teacher summary.csv from existing metrics.json files.",
     )
-    compare_parser.add_argument(
-        "--predictions-b", type=Path, required=True, help="Path to the second predictions.jsonl"
+    table_parser.add_argument("--before-metrics", type=Path, required=True)
+    table_parser.add_argument("--after-metrics", type=Path, required=True)
+    table_parser.add_argument("--teacher-metrics", type=Path, default=None)
+    table_parser.add_argument("--output", type=Path, required=True)
+
+    plot_parser = subparsers.add_parser(
+        "plot",
+        help="Bar chart of before/after/teacher accuracy (UW purple/gold).",
     )
-    compare_parser.add_argument(
-        "--label-a", default="condition_a", help="Readable name for the first condition"
-    )
-    compare_parser.add_argument(
-        "--label-b", default="condition_b", help="Readable name for the second condition"
-    )
-    compare_parser.add_argument(
+    plot_parser.add_argument("--before-metrics", type=Path, required=True)
+    plot_parser.add_argument("--after-metrics", type=Path, required=True)
+    plot_parser.add_argument("--teacher-metrics", type=Path, default=None)
+    plot_parser.add_argument(
         "--output",
         type=Path,
-        default=None,
-        help="Optional path to save the full result as JSON",
+        default=Path("eval_outputs/llama_accuracy_bars_purple_gold_v2.png"),
+    )
+    plot_parser.add_argument(
+        "--title",
+        default="Llama-3.2-1B GSM8K exact-match accuracy",
     )
 
     merge_parser = subparsers.add_parser(
         "merge",
-        help="Merge multiple teammates' summary.csv files into one poster comparison table.",
+        help="Merge multiple teammates' summary.csv files into one table.",
     )
-    merge_parser.add_argument(
-        "--summaries",
-        type=Path,
-        nargs="+",
-        required=True,
-        help="Paths to each teammate's summary.csv",
-    )
-    merge_parser.add_argument(
-        "--output", type=Path, required=True, help="Path to write the merged comparison CSV"
-    )
+    merge_parser.add_argument("--summaries", type=Path, nargs="+", required=True)
+    merge_parser.add_argument("--output", type=Path, required=True)
 
     return parser
 
@@ -400,6 +471,21 @@ def main() -> None:
             label_a=args.label_a,
             label_b=args.label_b,
             output_path=args.output,
+        )
+    elif args.command == "table":
+        write_compare_table(
+            before_metrics_path=args.before_metrics,
+            after_metrics_path=args.after_metrics,
+            teacher_metrics_path=args.teacher_metrics,
+            output_path=args.output,
+        )
+    elif args.command == "plot":
+        plot_accuracy_bars(
+            before_metrics_path=args.before_metrics,
+            after_metrics_path=args.after_metrics,
+            teacher_metrics_path=args.teacher_metrics,
+            output_path=args.output,
+            title=args.title,
         )
     elif args.command == "merge":
         merge_team_summaries(args.summaries, args.output)
