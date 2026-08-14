@@ -188,6 +188,28 @@ This provides strong evidence that the favorable imbalance between fixes and reg
 ![Question-level paired outcomes](figures/paired_outcomes.png)
 
 ---
+### Statistical Significance
+
+Because the same 1,319 GSM8K test examples were evaluated before and after SFT, the before/after outcomes were compared using a paired McNemar test.
+
+| Statistic | Result |
+|---|---:|
+| Shared test examples | **1,319** |
+| Before-SFT accuracy | **74.68%** |
+| After-SFT accuracy | **79.61%** |
+| Absolute improvement | **+4.93 pp** |
+| Correct before → Correct after | **893** |
+| Wrong before → Wrong after | **177** |
+| Correct before → Wrong after | **92** |
+| Wrong before → Correct after | **157** |
+| Discordant pairs | **249** |
+| McNemar method | Continuity-corrected chi-square |
+| Chi-square statistic | **16.4498** |
+| p-value | **4.99555 × 10⁻⁵** |
+
+The favorable imbalance between **157 fixes and 92 regressions** is statistically significant
+(\(p \approx 5.00 \times 10^{-5}\)), providing evidence that the observed improvement is unlikely to be explained by random answer switching alone.
+
 
 ## What Changed After Distillation?
 
@@ -219,15 +241,20 @@ After SFT, Qwen3-1.7B became much more reliable at producing the requested `<rea
 |---|---:|---:|
 | Qwen3-1.7B base | **74.68%** | 985 |
 | Qwen3-1.7B distilled | **79.61%** | 1,050 |
-| Qwen3-14B-AWQ teacher | **92.27%** | 1,217 |
+| Qwen3-14B-AWQ teacher reference | **92.27%** | 1,217 |
 
-Before distillation, the student was **17.59 percentage points** behind the teacher.
+Relative to the base model, distillation produced:
+
+- **+4.93 percentage points** absolute improvement;
+- **6.60% relative accuracy improvement**.
+
+Before distillation, the student was **17.59 percentage points** behind the teacher reference.
 
 After distillation, the remaining gap was **12.66 percentage points**.
 
 The student therefore closed approximately **28% of the original teacher-student accuracy gap**.
 
-Because the teacher used a larger `max_new_tokens=2048` generation budget while the student runs used `768`, the teacher score should be treated as a reference rather than a perfectly generation-budget-matched comparison.
+Because the teacher used a larger `max_new_tokens=2048` generation budget while the student before/after runs used `768`, the teacher score is treated as a reference rather than a generation-budget-matched comparison.
 
 ![Teacher-student accuracy gap](figures/teacher_gap.png)
 
@@ -253,6 +280,9 @@ Distillation improved mathematical accuracy and structured-output behavior, whil
 - [Before-SFT evaluation](../../outputs/qwen3/before_sft/)
 - [After-SFT evaluation](../../outputs/qwen3/after_sft/)
 - [Full Qwen3 knowledge-distillation report](Qwen3_1.7B_Knowledge_Distillation_Report.pdf)
+- [Before-vs-after McNemar analysis](../../outputs/qwen3/analysis/mcnemar_before_vs_after.json)
+- [Qwen comparison summary](../../outputs/qwen3/analysis/qwen_compare_summary.csv)
+
 
 ---
 
