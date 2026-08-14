@@ -22,7 +22,7 @@ This repository is the shared team repo for the full distillation pipeline: one 
 | Teacher + dataset | Qwen3-14B-AWQ | Priyadarshini Rajmohan | See contribution breakdown above. |
 | Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | Track README: [`student/llama/README.md`](student/llama/README.md) |
 | Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/` (track README TBD) |
-| Student — `student/qwen/` | Qwen3-1.7B | Mounika Akkenapragada | `student/qwen/` (track README TBD) |
+| Student — `student/qwen3/` | Qwen3-1.7B | Mounika Akkenapragada | [`student/qwen3/README.md`](student/qwen3/README.md) |
 
 Shared responsibilities: teacher prompts, dataset quality, hyperparameter protocol, audit of results, final report/presentation.
 
@@ -52,7 +52,7 @@ teacher-student-distillation/
 └── student/
     ├── llama/                    # Priyadarshini — track README
     ├── gemma/                    # Poojitha — track README
-    └── qwen/                     # Mounika — track README
+    └── qwen3/                     # Mounika — track README
 ```
 
 Each student subfolder owner will maintain their own README with that track's environment setup, training commands, and hyperparameter choices — this file doesn't duplicate that detail.
@@ -76,9 +76,9 @@ We distill mathematical reasoning from a large teacher (**Qwen3-14B-AWQ**) into 
 - **Teacher ceiling:** **92.27%** exact-match on official GSM8K test.
 - **Llama-3.2-1B (complete):** **43.1% → 51.3%** (+8.2 pp; McNemar \(p \approx 1.4 \times 10^{-7}\)); **~41 pp** still below the teacher.
 - - **Gemma / Qwen tracks:** 
-- **Main takeaway:** distillation teaches the required format and recovers a real but bounded accuracy gain, architecture/scale still dominate the remaining gap.
+- **Main takeaway:** distillation teaches the required format and recovers a real but bounded accuracy gain, architecture/scale still dominate the remaining gap.>
 
-**How to read this README:** teacher + shared data/eval first; per-student depth in each `student/<model>/` README (Llama: [`student/llama/README.md`](student/llama/README.md))(Gemma)(Qwen).
+
 
 ## Key Findings & Results
 
