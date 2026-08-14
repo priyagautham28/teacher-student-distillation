@@ -229,15 +229,25 @@ Llama-only depth (Meta card comparison, full ablation table, exact 50.8% recipe)
 | Adapter | none | [`qwen3_1_7b_gsm8k_qlora_v4`](outputs/qwen3/qwen3_1_7b_gsm8k_qlora_v4/) | QLoRA r=16, α=32 | 
 
 
-**What changed:** QLoRA distillation improved exact-match by **+4.93 pp** while also dramatically improving tagged output-format adherence. The distilled Qwen3-1.7B remains **12.66 pp** below the 92.27% teacher ceiling.
+**What changed:** QLoRA distillation improved exact-match from **74.68% → 79.61%** (**+4.93 pp**) under the shared `max_new_tokens=768` evaluation budget. The largest transfer effect was format adherence: valid-format rate increased from **6.22% → 98.94%**, and correct-and-valid rate increased from **4.17% → 79.53%**. The distilled student remains **12.66 pp** below the **92.27%** teacher ceiling.
+
+*Same shared GSM8K test at `max_new_tokens=768`: base 74.68% → distilled 79.61% vs teacher 92.27%. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
 
 ![Qwen3 exact-match accuracy before vs after distillation](student/qwen3/figures/accuracy_with_ci.png)
 
-*Same shared GSM8K test: base 74.68% → distilled 79.61% vs teacher 92.27%. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
-
 **Metrics files:**
+
 - Before: `outputs/qwen3/before_sft/Qwen_Qwen3-1.7B_before_sft_672fbe14_before_sft_metrics.json`
-- After: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json
+- After: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json`
+
+Qwen-only depth (training setup, figures, paired analysis, adapter artifacts): [`student/qwen3/README.md`](student/qwen3/README.md).
+
+*Additional analysis:*
+
+- Qwen paired McNemar test: \(p = 4.56 \times 10^{-5}\) (157 fixes vs 92 regressions).
+- Teacher-gap analysis: distilled Qwen remains **12.66 pp** below Qwen3-14B-AWQ.
+- Structured-output transfer: valid-format rate **6.22% → 98.94%**.
+- Detailed figures and training artifacts: [`student/qwen3/README.md`](student/qwen3/README.md)
 
 
 
