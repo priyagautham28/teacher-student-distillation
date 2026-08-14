@@ -5,6 +5,8 @@
 **Task:** GSM8K mathematical reasoning
 **Method:** Offline sequence-level knowledge distillation using automatically validated teacher-generated reasoning traces and 4-bit QLoRA SFT
 
+
+
 ## Key Result
 
 Knowledge distillation improved **Qwen3-1.7B** from **74.68% to 79.61% exact-match accuracy** on the untouched 1,319-question official GSM8K test split.
@@ -98,7 +100,7 @@ Before-SFT vs. After-SFT evaluation
 
 ### Why QLoRA?
 
-QLoRA was used to fine-tune Qwen3-1.7B efficiently by keeping the base model quantized to **4-bit** and training only small low-rank adapter weights. This reduces GPU-memory and compute requirements while preserving the pretrained model, making it a practical choice for testing knowledge distillation without full-parameter fine-tuning.
+QLoRA was used to fine-tune Qwen3-1.7B efficiently by keeping the base model quantized to **4-bit** and training only small low-rank adapter weights. This reduces GPU-memory requirements compared with full-parameter fine-tuning while leaving the pretrained base-model weights unchanged, making it a practical choice for testing knowledge distillation on limited GPU resources.
 
 ### Final Training Summary
 
@@ -149,6 +151,8 @@ This corresponds to:
 - **65 additional correct answers net**
 - **19.5% fewer errors**
 
+![Qwen3-1.7B exact-match accuracy before and after distillation](figures/accuracy_with_ci.png)
+
 ---
 
 ## Question-by-Question Analysis
@@ -181,6 +185,8 @@ An exact paired McNemar/binomial test on the 249 discordant pairs gives:
 
 This provides strong evidence that the favorable imbalance between fixes and regressions is unlikely to be explained by random answer switching alone.
 
+![Question-level paired outcomes](figures/paired_outcomes.png)
+
 ---
 
 ## What Changed After Distillation?
@@ -199,7 +205,11 @@ Valid-format generation increased from:
 
 **6.22% -> 98.94%**
 
+The stricter **correct-and-valid** metric, which requires both a correct numerical answer and the requested response format, increased from **4.17% -> 79.53%**. The 4.17% value is therefore not the base model's mathematical accuracy; the before-SFT exact-match accuracy was **74.68%**.
+
 After SFT, Qwen3-1.7B became much more reliable at producing the requested `<reasoning>` and `<final_answer>` structure with a normalized numerical answer.
+
+![Structured-output transfer](figures/format_transfer.png)
 
 ---
 
@@ -217,6 +227,10 @@ After distillation, the remaining gap was **12.66 percentage points**.
 
 The student therefore closed approximately **28% of the original teacher-student accuracy gap**.
 
+Because the teacher used a larger `max_new_tokens=2048` generation budget while the student runs used `768`, the teacher score should be treated as a reference rather than a perfectly generation-budget-matched comparison.
+
+![Teacher-student accuracy gap](figures/teacher_gap.png)
+
 ---
 
 ## Efficiency Trade-Off
@@ -230,6 +244,15 @@ The student therefore closed approximately **28% of the original teacher-student
 | Adapter storage | - | 0.369 GB |
 
 Distillation improved mathematical accuracy and structured-output behavior, while the evaluated after-SFT configuration generated longer responses and had higher latency. Peak CUDA-memory usage changed only modestly.
+
+---
+
+## Trained Adapter and Artifacts
+
+- [QLoRA adapter and training artifacts](../../outputs/qwen3/qwen3_1_7b_gsm8k_qlora_v4/)
+- [Before-SFT evaluation](../../outputs/qwen3/before_sft/)
+- [After-SFT evaluation](../../outputs/qwen3/after_sft/)
+- [Full Qwen3 knowledge-distillation report](Qwen3_1.7B_Knowledge_Distillation_Report.pdf)
 
 ---
 
