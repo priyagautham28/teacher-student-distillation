@@ -1,0 +1,21 @@
+{
+  "absolute_difference_b_minus_a": 0.04927975739196366,
+  "accuracy_a": 0.7467778620166793,
+  "accuracy_b": 0.796057619408643,
+  "both_correct": 893,
+  "both_wrong": 177,
+  "discordant_total": 249,
+  "label_a": "before_sft",
+  "label_b": "after_sft",
+  "method": "chi_square_continuity_corrected",
+  "n_records_a": 1319,
+  "n_records_b": 1319,
+  "only_a_correct": 92,
+  "only_b_correct": 157,
+  "p_value": 4.995547314228688e-05,
+  "predictions_a": "outputs\\qwen3_1_7b_latest_eval\\Qwen_Qwen3-1.7B_before_sft_672fbe14_before_sft_predictions.jsonl",
+  "predictions_b": "outputs\\qwen3_1_7b_latest_eval\\Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_predictions.jsonl",
+  "shared_n": 1319,
+  "significant_at_0_05": true,
+  "statistic": 16.449799196787147
+}
