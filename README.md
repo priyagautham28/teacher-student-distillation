@@ -318,6 +318,39 @@ Same student (`meta-llama/Llama-3.2-1B-Instruct`), same shared GSM8K test (1,319
 - A few concrete example outputs (teacher trace vs. student trace) for the report/poster
 - Whether the ranked expectation above (Qwen3-1.7B highest accuracy, Llama largest relative gain, Gemma as the open question) held up against the actual results
 
+## Why the students land at different scores 
+
+### Qwen3-1.7B (~79%) — why it can sit much closer to the teacher
+
+1. **Same family as the teacher (Qwen → Qwen).** Tokenizer, chat style, and pretraining distribution are closer to the teacher CoTs, so imitation is easier than cross-family transfer.
+2. **More capacity.** ~1.7B params, **28 layers**, hidden **2048** — deeper/wider than Llama 1B for multi-step math.
+3. **Stronger pretraining scale** (on the order of tens of trillions of tokens) and a built-in **thinking / reasoning** mode aligned with step-by-step supervision.
+4. **Not a pruned-down model.** Densely pretrained student, not recovered from aggressive compression like Llama 3.2 1B.
+
+So ~79% is consistent with: *same-family + larger/deeper student + reasoning-oriented pretraining*.
+
+### Llama-3.2-1B (51.3%) — why it lands lower
+
+1. **Cross-family transfer.** Teacher is Qwen; Llama uses a different **BPE** vocab (~128k vs Qwen’s ~152k). Same text becomes different tokens → harder to absorb teacher CoTs.
+2. **Shallower network.** Only **16 layers** (vs Qwen’s 28) — less depth for long arithmetic chains even with hidden size 2048.
+3. **Build history.** Made by **pruning Llama 3.1 8B** then KD-recovering — already a compressed model before our second distillation step.
+4. **What our errors show.** After SFT, format is mostly solved (~93% valid); residual failures are **wrong math with valid tags** (hallucinated reasoning / arithmetic). That is a reasoning/capacity ceiling, not “forgot the tags.”
+5. **Still a real win.** Base 43.1% → 51.3% (+8.2 pp, significant). Distillation helps; it just doesn’t close most of the teacher gap (~41 pp left).
+
+So ~51% is consistent with: *cross-family + shallower 1B + already-pruned lineage + protocol learned better than deep reasoning*.
+
+### Gemma 3 1B (TBD) 
+
+Likely drivers once the number lands:
+
+1. **Different family** from the Qwen teacher (like Llama) → tokenization/style mismatch still applies.
+2. **Math-oriented post-training** (incl. RL-style math rewards in Gemma’s pipeline) → may help **baseline** and maybe distilled score vs Llama.
+3. **Architecture quirks:** more layers than Llama (26) but **smaller hidden size (1152)** and local/global sliding-window attention — different inductive bias for long CoTs.
+4. **Also has a KD history** (post-trained with distillation from a larger instruct model) — another “already distilled” student, but with a math-focused prior.
+
+U
+
+
 ## Conclusion
 
 **Headline (so far).** Distilling Qwen3-14B-AWQ GSM8K chain-of-thought into compact students is workable under a shared protocol. The teacher ceiling is **92.27%** EM. On the completed Llama-3.2-1B track, QLoRA distillation raises exact-match from **43.1% → 51.3%** (+**8.2** pp; McNemar \(p \approx 1.4 \times 10^{-7}\)), while a **~41** pp gap to the teacher remains significant (\(p \approx 2.5 \times 10^{-111}\)).
