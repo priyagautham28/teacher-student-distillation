@@ -179,14 +179,6 @@ The net effect is:
 
 This exactly matches the change from **985 to 1,050** correct answers.
 
-An exact paired McNemar/binomial test on the 249 discordant pairs gives:
-
-**p = 4.56e-05**
-
-This provides strong evidence that the favorable imbalance between fixes and regressions is unlikely to be explained by random answer switching alone.
-
-![Question-level paired outcomes](figures/paired_outcomes.png)
-
 ---
 ### Statistical Significance
 
@@ -207,8 +199,8 @@ Because the same 1,319 GSM8K test examples were evaluated before and after SFT, 
 | Chi-square statistic | **16.4498** |
 | p-value | **4.99555 × 10⁻⁵** |
 
-The favorable imbalance between **157 fixes and 92 regressions** is statistically significant
-(\(p \approx 5.00 \times 10^{-5}\)), providing evidence that the observed improvement is unlikely to be explained by random answer switching alone.
+The favorable imbalance between **157 fixes and 92 regressions** is statistically significant (\(p \approx 5.00 \times 10^{-5}\)), providing evidence that the observed improvement is unlikely to be explained by random answer switching alone.
+![Question-level paired outcomes](figures/paired_outcomes.png)
 
 
 ## What Changed After Distillation?
@@ -282,6 +274,7 @@ Distillation improved mathematical accuracy and structured-output behavior, whil
 - [Full Qwen3 knowledge-distillation report](Qwen3_1.7B_Knowledge_Distillation_Report.pdf)
 - [Before-vs-after McNemar analysis](../../outputs/qwen3/analysis/mcnemar_before_vs_after.json)
 - [Qwen comparison summary](../../outputs/qwen3/analysis/qwen_compare_summary.csv)
+- [Qwen poster accuracy chart](../../outputs/qwen3/analysis/qwen_accuracy_bars.png)
 
 
 ---
