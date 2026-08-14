@@ -215,7 +215,31 @@ Llama-only depth (Meta card comparison, full ablation table, exact 50.8% recipe)
 - A few concrete example outputs (teacher trace vs. student trace) for the report/poster
 - Whether the ranked expectation above (Qwen3-1.7B highest accuracy, Llama largest relative gain, Gemma as the open question) held up against the actual results
 
-## Why the students land at different scores 
+### Qwen3-1.7B before vs after SFT (detail)
+
+| Metric | Before SFT | After SFT | Change |
+|--------|-----------:|----------:|-------:|
+| Exact-match accuracy | 74.68% | **79.61%** | **+4.93 pp** |
+| Correct-and-valid rate | 4.17% | **79.53%** | **+75.36 pp** |
+| Valid format rate | 6.22% | **98.94%** | **+92.72 pp** |
+| Truncation rate | 0.08% | 0.99% | +0.91 pp |
+| Avg inference latency | ~14.51 s / ex | ~32.12 s / ex | longer generations |
+| Peak GPU memory (eval) | ~3.34 GiB | ~3.41 GiB | similar |
+| `max_new_tokens` | 768 | 768 | team-matched student budget |
+| Adapter | none | [`qwen3_1_7b_gsm8k_qlora_v4`](outputs/qwen3/qwen3_1_7b_gsm8k_qlora_v4/) | QLoRA r=16, α=32 | 
+
+
+**What changed:** QLoRA distillation improved exact-match by **+4.93 pp** while also dramatically improving tagged output-format adherence. The distilled Qwen3-1.7B remains **12.66 pp** below the 92.27% teacher ceiling.
+
+![Qwen3 exact-match accuracy before vs after distillation](student/qwen3/figures/accuracy_with_ci.png)
+
+*Same shared GSM8K test: base 74.68% → distilled 79.61% vs teacher 92.27%. Full Qwen track: [`student/qwen3/README.md`](student/qwen3/README.md).*
+
+**Metrics files:**
+- Before: `outputs/qwen3/before_sft/Qwen_Qwen3-1.7B_before_sft_672fbe14_before_sft_metrics.json`
+- After: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json
+
+
 
 ### Qwen3-1.7B (~79%) — why it can sit much closer to the teacher
 
