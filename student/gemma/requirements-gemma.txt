@@ -1,0 +1,16 @@
+# Student QLoRA stack (Gemma-3-1B-it). Teacher/vLLM deps -> requirements-teacher.txt.
+#
+# Installed by student/gemma/gemma_qlora_training.ipynb on a Colab GPU
+# runtime. torch/CUDA are provided by that runtime, not installed by this
+# file (resolved at training time: torch==2.11.0+cu128 on a Tesla T4).
+# Versions below are the pinned/minimum constraints the notebook installs;
+# resolved versions actually used for the reported run are noted inline.
+
+transformers==4.56.2
+bitsandbytes>=0.46.1        # resolved: 0.50.0
+accelerate>=1.10.0          # resolved: 1.14.0
+peft>=0.20.0                # resolved: 0.20.0
+datasets>=3.0.0
+sentencepiece
+torchao>=0.17.0
+huggingface-hub==0.36.2
