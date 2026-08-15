@@ -180,12 +180,12 @@ Shared teacher-generated GSM8K data, identical for every student track: 1,922 tr
 | Batch × grad accum | `2 × 8` (effective 16) |
 | `max_seq_length` | `1536` |
 | Epochs | `3` |
-| Best checkpoint | `checkpoint-242`, eval loss `0.1909` |
+| Best checkpoint | [`checkpoint-242`](../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-242/), eval loss `0.1909` (of 3 epoch checkpoints; `final_best_adapter` is a copy of this one) |
 | Training wall-clock | `2620.8 s` (~43.7 min) on a Tesla T4 |
 | Trainable parameters | `13,045,760` (~1.29% of the loaded model) |
 | Adapter size | ~49.8 MB (safetensors) |
 
-Adapter weights: [`outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/`](../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) (`adapter_config.json`, `adapter_model.safetensors`, `training_summary.json`; tokenizer files are omitted since they're an unmodified copy of `google/gemma-3-1b-it`'s own tokenizer).
+Adapter weights: [`outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/`](../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) (`adapter_config.json`, `adapter_model.safetensors`, `training_summary.json`; tokenizer files are omitted since they're an unmodified copy of `google/gemma-3-1b-it`'s own tokenizer). Both epoch checkpoints from this run are also available: [`checkpoint-242`](../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-242/) (epoch 2, the one selected as best) and [`checkpoint-363`](../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-363/) (epoch 3, final step), each with `adapter_config.json`, `adapter_model.safetensors`, and `trainer_state.json`. Optimizer/scheduler/RNG state is not included, since those are only needed to resume training, not to use or evaluate the model.
 
 ---
 
@@ -305,6 +305,8 @@ Distinguishing between these would need further ablations that were not run for 
 | [`../../outputs/gemma/after_sft/`](../../outputs/gemma/after_sft/) | after-SFT metrics, predictions, summary CSV |
 | [`../../outputs/gemma/analysis/`](../../outputs/gemma/analysis/) | McNemar test results, poster chart, full report notebook |
 | [`../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/`](../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) | trained LoRA adapter weights, config, and training summary |
+| [`../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-242/`](../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-242/) | epoch-2 checkpoint (best eval loss); same adapter as `final_best_adapter` |
+| [`../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-363/`](../../outputs/gemma/gemma3_1b_qlora_v1/checkpoint-363/) | epoch-3 checkpoint (final step) |
 
 ---
 
