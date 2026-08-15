@@ -1,0 +1,21 @@
+{
+  "absolute_difference_b_minus_a": -0.1038665655799848,
+  "accuracy_a": 0.5140257771038665,
+  "accuracy_b": 0.41015921152388174,
+  "both_correct": 396,
+  "both_wrong": 496,
+  "discordant_total": 427,
+  "label_a": "before_sft",
+  "label_b": "after_sft",
+  "method": "chi_square_continuity_corrected",
+  "n_records_a": 1319,
+  "n_records_b": 1319,
+  "only_a_correct": 282,
+  "only_b_correct": 145,
+  "p_value": 4.6572146252274757e-11,
+  "predictions_a": "gemma_before_sft_fp16_full\\gemma_before_sft_fp16_full\\google_gemma-3-1b-it_before_sft_c6683815_fp16_final_predictions.jsonl",
+  "predictions_b": "gemma_after_sft_fp16_full\\google_gemma-3-1b-it_after_sft_3a9e3d53_fp16_full_final_predictions.jsonl",
+  "shared_n": 1319,
+  "significant_at_0_05": true,
+  "statistic": 43.31615925058548
+}
