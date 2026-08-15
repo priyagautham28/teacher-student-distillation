@@ -185,7 +185,7 @@ Shared teacher-generated GSM8K data, identical for every student track: 1,922 tr
 | Trainable parameters | `13,045,760` (~1.29% of the loaded model) |
 | Adapter size | ~49.8 MB (safetensors) |
 
-> **Note:** the adapter weights themselves (`gemma3_1b_qlora_v1/final_best_adapter/`) are not yet pushed to this repo, only the evaluation metrics/predictions produced by running that adapter through `evaluate_gsm8k.py` are. Reproducing `after_sft` eval from scratch means retraining first with the recipe above.
+Adapter weights: [`outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/`](../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) (`adapter_config.json`, `adapter_model.safetensors`, `training_summary.json`; tokenizer files are omitted since they're an unmodified copy of `google/gemma-3-1b-it`'s own tokenizer).
 
 ---
 
@@ -304,6 +304,7 @@ Distinguishing between these would need further ablations that were not run for 
 | [`../../outputs/gemma/before_sft/`](../../outputs/gemma/before_sft/) | before-SFT metrics, predictions, summary CSV |
 | [`../../outputs/gemma/after_sft/`](../../outputs/gemma/after_sft/) | after-SFT metrics, predictions, summary CSV |
 | [`../../outputs/gemma/analysis/`](../../outputs/gemma/analysis/) | McNemar test results, poster chart, full report notebook |
+| [`../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/`](../../outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) | trained LoRA adapter weights, config, and training summary |
 
 ---
 
