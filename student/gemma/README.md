@@ -100,6 +100,8 @@ Open [`gemma_qlora_training.ipynb`](gemma_qlora_training.ipynb) in Colab and run
 
 ## Usage
 
+The commands below are the portable, CLI form of what actually ran. The exact Colab notebooks used for the reported runs are [`gemma_before_sft_eval.ipynb`](gemma_before_sft_eval.ipynb) and [`gemma_after_sft_eval.ipynb`](gemma_after_sft_eval.ipynb), which call this same `evaluate_gsm8k.py` script via `subprocess` after mounting Drive.
+
 **Evaluate the base model (before SFT):**
 ```bash
 python evaluation/evaluate_gsm8k.py \
@@ -296,6 +298,8 @@ Distinguishing between these would need further ablations that were not run for 
 | [`README.md`](README.md) | this file |
 | [`requirements-gemma.txt`](requirements-gemma.txt) | pinned/minimum package versions for the training notebook |
 | [`gemma_qlora_training.ipynb`](gemma_qlora_training.ipynb) | Colab QLoRA training notebook; single experiment-configuration cell drives every hyperparameter |
+| [`gemma_before_sft_eval.ipynb`](gemma_before_sft_eval.ipynb) | Colab notebook that actually ran the before-SFT evaluation |
+| [`gemma_after_sft_eval.ipynb`](gemma_after_sft_eval.ipynb) | Colab notebook that actually ran the after-SFT evaluation |
 | [`gemma_final_report.ipynb`](gemma_final_report.ipynb) | Full report notebook (all tables, plots, error breakdown, written conclusion); same file also lives in `outputs/gemma/analysis/` |
 | [`gemma3_1b_architecture.png`](gemma3_1b_architecture.png) | Gemma-3-1B-it model architecture, built from its actual `config.json` |
 | [`figures/gemma_metrics_by_stage.png`](figures/gemma_metrics_by_stage.png) | exact-match, valid-format, and correct-and-valid across teacher/before/after |
