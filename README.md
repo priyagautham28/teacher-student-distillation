@@ -23,7 +23,7 @@ In this project, we investigate whether a large teacher model (Qwen3-14B-AWQ) ca
 |------|--------|--------|---------|
 | Teacher + dataset | Qwen3-14B-AWQ | Priyadarshini Rajmohan | See contribution breakdown above. |
 | Student — `student/llama/` | Llama-3.2-1B-Instruct | Priyadarshini Rajmohan | Track README: [`student/llama/README.md`](student/llama/README.md) |
-| Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | `student/gemma/` (track README TBD) |
+| Student — `student/gemma/` | Gemma 3 1B | Poojitha Alam | Track README: [`student/gemma/README.md`](student/gemma/README.md) |
 | Student — `student/qwen3/` | Qwen3-1.7B | Mounika Akkenapragada | [`student/qwen3/README.md`](student/qwen3/README.md) |
 
 Shared responsibilities: teacher prompts, dataset quality, hyperparameter protocol, audit of results, final report/presentation.
@@ -52,8 +52,8 @@ We distill mathematical reasoning from a large teacher (**Qwen3-14B-AWQ (Activat
 - **Teacher ceiling:** **92.27%** exact-match on official GSM8K test.
 - **Llama-3.2-1B (complete):** **44.3% → 50.8%** (+6.5 percentage points (pp))
 - **Qwen3-1.7B (complete):** **74.68% → 79.61%** (+4.93 pp).
-- **Gemma 3 1B:** pending.
-- **Main takeaway:** distillation teaches the required format and recovers real but bounded accuracy gains; architecture, scale, and teacher-family match still shape the remaining gaps.
+- **Gemma 3 1B (complete):** **51.40% → 41.02%** (−10.39 pp — the only track where exact-match declined, though its correct-and-valid rate rose +40.03 pp).
+- **Main takeaway:** distillation reliably teaches the required output format across all three students, but the effect on raw accuracy is not uniform — Llama and Qwen gained accuracy, while Gemma's exact-match fell even as its correct-and-valid rate rose sharply; architecture, scale, and teacher-family match still shape the remaining gaps.
 
 ## Architectural differences across student models, and our expectations
 
@@ -63,7 +63,7 @@ The three students are meaningfully different in architecture and training histo
 |---|---|---|---|
 | Layers | 28 | 26 | 16 |
 | Hidden dim | 2048 | 1152 | 2048 |
-| Attention | Grouped-query attention (GQA), 16 query heads / 8 key-value heads | Interleaved: 5 local sliding-window layers (1024-token window) per 1 global layer | Standard GQA every layer, 8 KV heads |
+| Attention | Grouped-query attention (GQA), 16 query heads / 8 key-value heads | Interleaved: 5 local sliding-window layers (512-token window) per 1 global layer, aggressive GQA (4 query heads / 1 shared key-value head) | Standard GQA every layer, 8 KV heads |
 | Vocab / tokenizer | Byte-level byte-pair encoding (BBPE), 151,669 tokens, 119 languages | Gemini 2.0 SentencePiece, 262,144 tokens | Byte-pair encoding (BPE), 128,256 tokens |
 | Native context | 32,768 tokens | 32,768 tokens (1B variant) | 131,072 tokens |
 | Pretraining scale | ~36 trillion tokens | ~2 trillion tokens (1B variant) | Derived from Llama 3.1's pretraining, not trained fresh at comparable scale |
@@ -75,7 +75,7 @@ The three students are meaningfully different in architecture and training histo
 
 1. **Qwen3-1.7B is expected to reach the highest absolute accuracy after distillation** — it has the most parameters, by far the largest pretraining scale, and a reasoning-oriented ("thinking mode") architecture already aligned with the kind of step-by-step supervision our teacher dataset provides.
 2. **Llama 3.2 1B may show the largest *relative* improvement from our distillation step**, even if it doesn't win on final accuracy, its own training history already depends on learning from a larger teacher's logits, which may make it comparatively receptive to a second round of teacher-based fine-tuning.
-3. **Gemma 3 1B has documented, targeted training for math reasoning, which sets it apart from the other two students.** Its post-training pipeline explicitly includes reinforcement learning with ground-truth rewards for solving math problems, a dedicated math-reasoning training step neither Qwen3-1.7B's general pretraining nor Llama 3.2 1B's distillation lineage specifically includes. Given its targeted reasoning training, we expect Gemma to outperform Llama at baseline and likely retain some of that edge after distillation.
+3. **Gemma 3 1B has documented, targeted training for math reasoning, which sets it apart from the other two students.** Its post-training pipeline explicitly includes reinforcement learning with ground-truth rewards for solving math problems, a dedicated math-reasoning training step neither Qwen3-1.7B's general pretraining nor Llama 3.2 1B's distillation lineage specifically includes. Given its targeted reasoning training, we expect Gemma to outperform Llama at baseline and likely retain some of that edge after distillation. **Outcome:** the first half held — Gemma's baseline (51.40%) did beat Llama's (44.3%) — but the second half didn't: after distillation Gemma fell to 41.02%, behind Llama's 50.8%, so the math-focused post-training edge was not retained. See [Gemma-3-1B-IT (~41%): why distillation underperformed](#gemma-3-1b-it-41-why-distillation-underperformed) below.
 
 
 ## The teacher model — Qwen3-14B-AWQ
@@ -136,15 +136,15 @@ All three student tracks use the same teacher-generated dataset, train/val/test 
 
 ## Results & key findings
 
-Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remains pending. Students use `max_new_tokens=768`; the teacher uses 2048 and is a reference ceiling.
+All four rows (teacher and all three students) are filled from repository metrics. Students use `max_new_tokens=768`; the teacher uses 2048 and is a reference ceiling.
 
 | Model | Exact-match accuracy | Improvement over base | Gap to teacher | Peak GPU memory | Inference latency | Model size |
 |---|---|---|---|---|---|---|
 | Teacher (Qwen3-14B-AWQ) | 92.27% | — | — | ~9.7 GB (test) / ~23 GB (gen) | ~2.27 s / ex (test) | 14B AWQ |
 | Llama-3.2-1B (base) | 44.3% | — | 48.0 pp | ~2.4 GB | ~2.1 s / ex | ~1.2B |
 | Llama-3.2-1B (after QLoRA) | **50.8%** | **+6.5 pp** | **41.5 pp** | ~2.4 GB | ~5.2 s / ex | ~1.2B + ~58 MB adapter |
-| Gemma-3-1B (base) | TBD | — | TBD | TBD | TBD | TBD |
-| Gemma-3-1B (after QLoRA) | TBD | TBD | TBD | TBD | TBD | TBD |
+| Gemma-3-1B (base) | 51.40% | — | 40.86 pp | ~1.89 GiB | ~6.77 s / ex | ~1.0B |
+| Gemma-3-1B (after QLoRA) | 41.02% | **−10.39 pp** | **51.25 pp** | ~1.95 GiB | ~17.09 s / ex | ~1.0B + ~49.8 MB adapter |
 | Qwen3-1.7B (base) | 74.68% | — | 17.59 pp | ~3.34 GiB | ~14.51 s / ex | ~1.72B |
 | Qwen3-1.7B (after QLoRA) | **79.61%** | **+4.93 pp** | **12.66 pp** | ~3.41 GiB | ~32.12 s / ex | ~1.74B + 0.369 GB adapter |
 
@@ -152,7 +152,7 @@ Teacher, Llama, and Qwen results are filled from repository metrics; Gemma remai
 - Distillation improves both structured-output adherence and mathematical accuracy, while substantial gaps to the teacher reference remain.
 - **Llama-3.2-1B:** 44.3% → **50.8%** (+6.5 pp; McNemar \(p \approx 2.8 \times 10^{-5}\)). Valid format ~59% → ~92%. Residual failures are mostly **wrong math with valid tags**. ~41.5 pp still below the teacher (\(p \approx 1.3 \times 10^{-113}\)).
 - **Qwen3-1.7B:** 74.68% → **79.61%** (+4.93 pp; continuity-corrected paired McNemar \(p \approx 5.00 \times 10^{-5}\)). Valid format 6.22% → 98.94%. Closes ~28% of its original teacher gap and currently sits closest to the teacher among the completed student tracks.
-- **Gemma 3 1B:** pending.
+- **Gemma 3 1B:** exact-match actually fell, from 51.40% to **41.02%** (−10.39 pp; McNemar \(p \approx 4.66 \times 10^{-11}\)) — the only track where accuracy declined. Even so, the model's output structure transferred just as strongly as it did for the other two students, with valid format climbing from 1.97% to 97.35%. Because so few pre-SFT answers could be extracted from a properly formed tag, the fairer correct-and-valid rate actually rose from 0.99% to **41.02%** (+40.03 pp). Gemma is still roughly 51.25 pp behind the teacher on raw exact-match (\(p \approx 1.41 \times 10^{-141}\)), though that gap narrows to 50.34 pp once format is taken into account.
 
 Teacher metrics: `outputs/teacher_testset/Qwen_Qwen3-14B-AWQ_teacher_3cb9a5c9_metrics.json`.  
 Llama before: `outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json`.  
@@ -163,7 +163,12 @@ Qwen before: `outputs/qwen3/before_sft/Qwen_Qwen3-1.7B_before_sft_672fbe14_befor
 Qwen after: `outputs/qwen3/after_sft/Qwen_Qwen3-1.7B_after_sft_afcc4197_after_sft_v4_metrics.json`.  
 Qwen McNemar: [`mcnemar_before_vs_after.json`](outputs/qwen3/analysis/mcnemar_before_vs_after.json).  
 Qwen comparison summary: [`qwen_compare_summary.csv`](outputs/qwen3/analysis/qwen_compare_summary.csv).  
-Qwen poster chart: [`qwen_accuracy_bars.png`](outputs/qwen3/analysis/qwen_accuracy_bars.png).
+Qwen poster chart: [`qwen_accuracy_bars.png`](outputs/qwen3/analysis/qwen_accuracy_bars.png).  
+Gemma before: `outputs/gemma/before_sft/google_gemma-3-1b-it_before_sft_c6683815_fp16_final_metrics.json`.  
+Gemma after: `outputs/gemma/after_sft/google_gemma-3-1b-it_after_sft_3a9e3d53_fp16_full_final_metrics.json`.  
+Gemma McNemar: [`mcnemar_before_vs_after.json`](outputs/gemma/analysis/mcnemar_before_vs_after.json), [`mcnemar_student_vs_teacher.json`](outputs/gemma/analysis/mcnemar_student_vs_teacher.json).  
+Gemma comparison summary: [`gemma_compare_summary.csv`](outputs/gemma/analysis/gemma_compare_summary.csv).  
+Gemma poster chart: [`gemma_accuracy_bars.png`](outputs/gemma/analysis/gemma_accuracy_bars.png).
 
 ### Llama before vs after SFT (detail)
 | Metric | Before SFT | After SFT (best) | Change |
@@ -226,6 +231,46 @@ Qwen-only depth (training setup, figures, paired analysis, adapter artifacts): [
 - Detailed figures and training artifacts: [`student/qwen3/README.md`](student/qwen3/README.md)
 
 
+### Gemma 3 1B before vs after SFT (detail)
+
+| Metric | Before SFT | After SFT | Change |
+|--------|-----------:|----------:|-------:|
+| Exact-match accuracy | 51.40% | 41.02% | **−10.39 pp** |
+| Correct-and-valid rate | 0.99% | **41.02%** | **+40.03 pp** |
+| Valid format rate | 1.97% | **97.35%** | **+95.38 pp** |
+| Truncation rate | 5.23% | 2.58% | −2.65 pp |
+| Avg inference latency | ~6.77 s / ex | ~17.09 s / ex | longer generations |
+| Peak GPU memory (eval) | ~1.89 GiB | ~1.95 GiB | similar |
+| `max_new_tokens` | 768 | 768 | team-matched student budget |
+| Adapter | none | [`gemma3_1b_qlora_v1/final_best_adapter`](outputs/gemma/gemma3_1b_qlora_v1/final_best_adapter/) | QLoRA r=16, α=32, lr=2e-4 |
+
+**What changed:** unlike Llama and Qwen, distillation did not raise Gemma's raw exact-match — it fell by 10.39 pp (McNemar \(p \approx 4.66 \times 10^{-11}\)), a statistically real effect, not noise. What did transfer, overwhelmingly, was output structure: valid-format rate rose from 1.97% to 97.35%. Before SFT, most of Gemma's "correct" answers were recovered by the evaluator's loose fallback text-scan, not a clean `<final_answer>` tag, since the model almost never produced that tag correctly in the first place. After SFT the model reliably produces the required tags but gets the arithmetic wrong more often inside them: net effect, 145 answers newly correct against 282 newly wrong, out of 1,319. On the fairer correct-and-valid metric, which requires both a right answer and a well-formed tag, Gemma improved substantially: 0.99% → 41.02% (+40.03 pp).
+
+![Gemma accuracy and format compliance across pipeline stages](student/gemma/figures/gemma_metrics_by_stage.png)
+*Gemma GSM8K exact-match, valid-format, and correct-and-valid rate across teacher/before/after (`max_new_tokens=768`): the three metrics do not move together the way they do for Llama and Qwen.*
+
+Metrics: [`before`](outputs/gemma/before_sft/google_gemma-3-1b-it_before_sft_c6683815_fp16_final_metrics.json) · [`after`](outputs/gemma/after_sft/google_gemma-3-1b-it_after_sft_3a9e3d53_fp16_full_final_metrics.json) · [`mcnemar before/after`](outputs/gemma/analysis/mcnemar_before_vs_after.json) · [`mcnemar vs teacher`](outputs/gemma/analysis/mcnemar_student_vs_teacher.json).
+
+**Gap to teacher moved in opposite directions depending on the metric.** On raw exact-match, the gap to the 92.27% teacher *widened* from 40.86 pp to 51.25 pp. On correct-and-valid, the gap *narrowed* from 90.37 pp to 50.34 pp (\(p \approx 1.41 \times 10^{-141}\) for after-SFT vs. teacher). Full Gemma track, including candidate explanations for the accuracy decline: [`student/gemma/README.md`](student/gemma/README.md#why-this-probably-happened).
+
+**Metrics files:**
+
+- Before: `outputs/gemma/before_sft/google_gemma-3-1b-it_before_sft_c6683815_fp16_final_metrics.json`
+- After: `outputs/gemma/after_sft/google_gemma-3-1b-it_after_sft_3a9e3d53_fp16_full_final_metrics.json`
+
+Gemma-only depth (setup, McNemar tests, failure-mode breakdown, candidate explanations, reproduction commands): [`student/gemma/README.md`](student/gemma/README.md).
+
+*Additional analysis:*
+
+- Gemma before-vs.-after paired McNemar test (continuity-corrected): \(p \approx 4.66 \times 10^{-11}\) (145 fixes vs. 282 regressions, a net loss of 137 answers).
+  Artifact: [`mcnemar_before_vs_after.json`](outputs/gemma/analysis/mcnemar_before_vs_after.json)
+- Teacher-gap analysis: distilled Gemma remains **51.25 pp** below the teacher on raw exact-match, but only **50.34 pp** behind on correct-and-valid.
+  Summary: [`gemma_compare_summary.csv`](outputs/gemma/analysis/gemma_compare_summary.csv)
+- Structured-output transfer: valid-format rate **1.97% → 97.35%**.
+  Poster accuracy chart: [`gemma_accuracy_bars.png`](outputs/gemma/analysis/gemma_accuracy_bars.png)
+- Detailed figures, failure-mode breakdown, and training artifacts: [`student/gemma/README.md`](student/gemma/README.md)
+
+
 ## Why the students land at different scores
 
 
@@ -248,19 +293,24 @@ So ~79% is consistent with: *same-family + larger/deeper student + reasoning-ori
 
 So ~50.8% is consistent with: *cross-family + shallower 1B + already-pruned lineage + protocol learned better than deep reasoning*.
 
-### Gemma 3 1B (TBD) 
+### Gemma-3-1B-IT (~41%): why distillation underperformed
 
-Likely drivers once the number lands:
+1. **Strong protocol learning, weak reasoning transfer.** Valid-format compliance improved from about 1.97% to ~97%, while exact-match accuracy decreased from about 51.4% to ~41%. Gemma learned the required `<reasoning>` and `<final_answer>` structure very effectively, but this did not translate into stronger mathematical reasoning.
+2. **SFT reduced pretrained reasoning performance.** The base Gemma model already achieved about 51.4% GSM8K accuracy. After SFT, performance fell below this baseline, indicating that adaptation did not preserve all of the useful reasoning ability already present in the instruction-tuned model.
+3. **Multi-step calculation state errors.** Error analysis showed failures such as losing an intermediate total, dropping a quantity, mishandling a sign, or performing an unnecessary operation after reaching a correct intermediate result, a sign of difficulty maintaining numerical and reasoning state across multiple calculation steps, not simple arithmetic weakness.
+4. **Concise reasoning did not recover performance.** Replacing the rigid one-operation-per-step style with a concise step-by-step prompt still resulted in about 39% accuracy, so excessive verbosity or rigid step structure was not the primary cause of the degradation.
+5. **Strong teacher quality shifts the bottleneck to student adaptation.** The Qwen teacher achieved 92.27% GSM8K accuracy, so weak teacher performance is unlikely to explain Gemma's low score. The results instead point toward the student-side SFT/distillation process as the more likely source of degradation.
+6. **Architecture may contribute.** Gemma 3 1B uses 26 layers, hidden size 1152, 4 query heads / 1 KV head, and 5-local : 1-global attention. Its tighter KV sharing may make multi-step value tracking harder, though this remains a hypothesis.
 
-1. **Different family** from the Qwen teacher (like Llama) → tokenization/style mismatch still applies.
-2. **Math-oriented post-training** (incl. RL-style math rewards in Gemma’s pipeline) → may help **baseline** and maybe distilled score vs Llama.
-3. **Architecture quirks:** more layers than Llama (26) but **smaller hidden size (1152)** and local/global sliding-window attention — different inductive bias for long CoTs.
-4. **Also has a KD history** (post-trained with distillation from a larger instruct model) — another “already distilled” student, but with a math-focused prior.
-
+So ~41% is consistent with: *strong format learning + weak reasoning transfer + reduced post-SFT performance + multi-step calculation-state errors + an architecture-driven bottleneck, not weak teacher quality or excessive reasoning length*.
 
 ## Conclusion
 
-Distilling Qwen3-14B-AWQ GSM8K CoTs into compact students works under a shared protocol, but only partway. The completed tracks show real gains — Llama **44.3% → 50.8%** (+6.5 pp) and Qwen **74.68% → 79.61%** (+4.93 pp) — driven mainly by learning the tagged format, with modest answer-accuracy transfer. Most of the gap to the **92.27%** teacher remains: widest for cross-family Llama (~41.5 pp), narrower for same-family Qwen (~12.7 pp). Distilled students stay light at eval (~2.4–3.4 GB) and are practical as local, privacy-friendly assistants for this task band — not drop-in replacements for the 14B teacher. Caveats: 2,000-example teacher subset; single teacher and benchmark; one selected run per track; Gemma still pending.
+Distilling Qwen3-14B-AWQ GSM8K CoTs into compact students produced model-dependent results. Llama-3.2-1B improved from 44.3% → 50.8% (+6.5 pp) and Qwen3-1.7B from 74.68% → 79.61% (+4.93 pp), with strong gains in output-format compliance but only partial transfer of the teacher's 92.27% accuracy.
+
+Gemma-3-1B-IT improved strongly in format compliance, from about 1.97% valid format to ~97%, but its exact-match accuracy dropped from about 51.4% to ~41% after SFT. Its remaining failures were mainly multi-step calculation state errors, and concise reasoning did not recover accuracy. This suggests Gemma learned the response protocol very well, but not the underlying reasoning skill.
+
+Overall, reasoning distillation is highly student-dependent: Qwen benefited most, Llama improved moderately, while Gemma improved formatting but lost mathematical accuracy. The compact students remain lightweight (~1.9–3.4 GB) and practical for local, privacy-friendly use, but they are not replacements for the 14B teacher. Main caveats are the 2,000-example subset, single teacher/benchmark, and one selected run per student.
 
 ## Repository structure (current)
 
@@ -298,8 +348,9 @@ Teacher generation (train + val) and teacher test eval were run with different b
 | Llama-3.2-1B (QLoRA train) | Fine-tuning (`train_v3`, r=16, lr=2e-4, eff. batch 16, max_seq 1024) | 4 × accum 4 | 1024 (seq) / gen-eval **768** | ~4-bit QLoRA on 24GB class GPU; wall-clock ~30 min / run |
 | Llama-3.2-1B (base eval) | Official test (before SFT, bf16, v4 prompt, max768) | 1 | **768** | ~2.4 GB |
 | Llama-3.2-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~2.4 GB |
-| Gemma-3-1B (QLoRA train) | Fine-tuning | TBD | TBD | TBD |
-| Gemma-3-1B (eval) | Test | TBD | TBD | TBD |
+| Gemma-3-1B (QLoRA train) | Fine-tuning (`gemma_qlora_training.ipynb`, r=16, lr=2e-4, eff. batch 16, max_seq 1536, 3 epochs) | 2 × accum 8 | 1536 (seq) / gen-eval **768** | 4-bit QLoRA on a Colab T4 (14.56 GiB); wall-clock ~43.7 min |
+| Gemma-3-1B (base eval) | Official test (before SFT, fp16, max768) | 1 | **768** | ~1.89 GiB |
+| Gemma-3-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~1.95 GiB |
 | Qwen3-1.7B (QLoRA train) | Fine-tuning (3 epochs, max seq 1536) | 1 × accum 8 | 1536 (seq) | 4-bit QLoRA; ~94 min |
 | Qwen3-1.7B (base eval) | Official test | 1 | **768** | ~3.34 GiB |
 | Qwen3-1.7B (after QLoRA eval) | Official test | 1 | **768** | ~3.41 GiB |
