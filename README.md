@@ -306,11 +306,13 @@ So ~41% is consistent with: *strong format learning + weak reasoning transfer + 
 
 ## Conclusion
 
-Distilling Qwen3-14B-AWQ GSM8K CoTs into compact students produced model-dependent results. Llama-3.2-1B improved from 44.3% → 50.8% (+6.5 pp) and Qwen3-1.7B from 74.68% → 79.61% (+4.93 pp), with strong gains in output-format compliance but only partial transfer of the teacher's 92.27% accuracy.
+Distilling Qwen3-14B-AWQ GSM8K CoTs into compact students under one shared protocol produced model-dependent results.
+
+Llama-3.2-1B improved from 44.3% → 50.8% (+6.5 pp) and Qwen3-1.7B from 74.68% → 79.61% (+4.93 pp), with strong gains in output-format compliance but only partial transfer of the teacher's 92.27% accuracy.
 
 Gemma-3-1B-IT improved strongly in format compliance, from about 1.97% valid format to ~97%, but its exact-match accuracy dropped from about 51.4% to ~41% after SFT. Its remaining failures were mainly multi-step calculation state errors, and concise reasoning did not recover accuracy. This suggests Gemma learned the response protocol very well, but not the underlying reasoning skill.
 
-Overall, reasoning distillation is highly student-dependent: Qwen benefited most, Llama improved moderately, while Gemma improved formatting but lost mathematical accuracy. The compact students remain lightweight (~1.9–3.4 GB) and practical for local, privacy-friendly use, but they are not replacements for the 14B teacher. Main caveats are the 2,000-example subset, single teacher/benchmark, and one selected run per student.
+Overall, reasoning distillation is highly student-dependent: Qwen benefited most, Llama improved moderately, while Gemma improved formatting but lost mathematical accuracy. Most of the gap to the 92.27% teacher remains: widest for cross-family Llama (~41.5 pp) and Gemma (~51.3 pp), narrower for same-family Qwen (~12.7 pp). The compact students remain lightweight (~1.9–3.4 GB) and practical for local, privacy-friendly use, but they are not replacements for the 14B teacher. Main caveats are the 2,000-example subset, single teacher/benchmark, and one selected run per student.
 
 ## Repository structure (current)
 
