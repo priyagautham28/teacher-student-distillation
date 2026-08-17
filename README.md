@@ -346,7 +346,7 @@ Teacher generation (train + val) and teacher test eval were run with different b
 | Model | Stage | Batch size | Max tokens | Peak GPU memory |
 |-------|--------|------------|------------|-----------------|
 | Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 2048 | ~23 GB |
-| Teacher (Qwen3-14B-AWQ) | Official test eval (Mounika) | 1 | 2048 | ~9.7 GB |
+| Teacher (Qwen3-14B-AWQ) | Official test eval | 1 | 2048 | ~9.7 GB |
 | Llama-3.2-1B (QLoRA train) | Fine-tuning (`train_v3`, r=16, lr=2e-4, eff. batch 16, max_seq 1024) | 4 × accum 4 | 1024 (seq) / gen-eval **768** | ~4-bit QLoRA on 24GB class GPU; wall-clock ~30 min / run |
 | Llama-3.2-1B (base eval) | Official test (before SFT, bf16, v4 prompt, max768) | 1 | **768** | ~2.4 GB |
 | Llama-3.2-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~2.4 GB |
