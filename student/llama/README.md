@@ -99,7 +99,7 @@ The team trains **three** students on the **same** teacher data to compare archi
 | Avg latency | ~2.1 s / ex | ~5.2 s / ex | longer generations |
 | Peak GPU (eval) | ~2.4 GB | ~2.4 GB | similar |
 
-Best validation checkpoint during training was `checkpoint-242` (val generation exact-match (EM) 0.57); full test on that checkpoint was 50.6%. We report **`final_adapter` at 50.8%** as the official student result under the team-matched `max_new_tokens=768` eval.
+Best validation checkpoint was checkpoint-242 (val gen-EM 0.57). We report final_adapter at 50.8% as the official student result under the team-matched max_new_tokens=768 eval.
 
 **Metrics paths**
 - Before: [`outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json`](../../outputs/llama/before_sft/meta-llama_Llama-3.2-1B-Instruct_before_sft_91626410_max768_metrics.json)
