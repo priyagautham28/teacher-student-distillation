@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """Plot error-category counts from analyze_wrong_ans.py output.
 
 Usage:
@@ -25,7 +24,11 @@ def main() -> None:
     p = argparse.ArgumentParser()
     p.add_argument("--summary", type=Path, required=True)
     p.add_argument("--out", type=Path, required=True)
-    p.add_argument("--title", default="Llama after-SFT wrong-but-valid error categories")
+    p.add_argument(
+        "--title",
+        default="",
+        help="Optional chart title; leave empty for poster (caption in PPT instead)",
+    )
     args = p.parse_args()
 
     summary = json.loads(args.summary.read_text())
@@ -36,22 +39,23 @@ def main() -> None:
 
     labels = [k.replace("_", " ") for k, _ in items]
     values = [v for _, v in items]
-    total = summary.get("wrong_but_valid") or sum(values)
 
-    fig, ax = plt.subplots(figsize=(10, 5.5))
-    # Solid purple bars + gold frame (first purple/gold style)
+    # Poster-readable sizes (small 4-col slot; put section title in PPT)
+    plt.rcParams.update({"font.size": 14})
+    fig, ax = plt.subplots(figsize=(8, 4.5))
     bars = ax.barh(labels[::-1], values[::-1], color=UW_PURPLE)
-    ax.set_xlabel("Count", color=UW_GRAY)
-    ax.set_title(f"{args.title}\n(n={total} wrong-but-valid)", color=UW_PURPLE)
-    ax.bar_label(bars, padding=3, fontsize=9, color=UW_GRAY)
+    ax.set_xlabel("Count", fontsize=16, color=UW_GRAY)
+    if args.title.strip():
+        ax.set_title(args.title.strip(), color=UW_PURPLE, fontsize=18, pad=10)
+    ax.bar_label(bars, padding=4, fontsize=14, color=UW_GRAY)
     ax.set_xlim(0, max(values) * 1.15)
-    ax.tick_params(colors=UW_GRAY)
+    ax.tick_params(axis="both", labelsize=14, colors=UW_GRAY)
     for spine in ax.spines.values():
         spine.set_color(UW_GOLD)
     fig.tight_layout()
 
     args.out.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(args.out, dpi=200, facecolor="white")
+    fig.savefig(args.out, dpi=300, facecolor="white", bbox_inches="tight")
     print(f"wrote {args.out}")
 
 
