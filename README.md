@@ -30,7 +30,7 @@ Shared responsibilities: teacher prompts, dataset quality, hyperparameter protoc
 
 ## Pipeline overview
 
-![Project pipeline](teacher/project_pipeline.png)
+![Project pipeline](teacher/project_pipeline_v2.png)
 
 *Note: the diagram shows an earlier planning snapshot (2,000 train + 200 val). The current `gsm8k_teacher_v4` run samples **2,000 train + 500 val** and keeps **1,922 / 485** accepted supervised fine-tuning (SFT) examples after validation — see [Data](#data).*
 
