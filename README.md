@@ -5,7 +5,7 @@
 **Team:** Pick and Parse
 **Members:** Priyadarshini Rajmohan · Poojitha Alam · Mounika Akkenapragada
 
-In this project, we investigate whether a large teacher model (Qwen3-14B-AWQ) can effectively transfer mathematical reasoning ability to compact open-weight language models using 4-bit QLoRA fine-tuning. Specifically, we compare multiple student architectures trained on the same teacher-generated reasoning demonstrations and analyze the trade-offs between reasoning accuracy, computational efficiency, and model size. Since different language model families employ distinct architectures and tokenization strategies, it is unclear whether they benefit equally from knowledge distillation. By evaluating multiple compact models under an shared teacher data and evaluation protocol, with model-specific training recipes, we aim to identify which architecture retains mathematical reasoning capability most effectively after distillation.
+In this project, we investigate whether a large teacher model (Qwen3-14B-AWQ) can effectively transfer mathematical reasoning ability to compact open-weight language models using 4-bit QLoRA fine-tuning. Specifically, we compare multiple student architectures trained on the same teacher-generated reasoning demonstrations and analyze the trade-offs between reasoning accuracy, computational efficiency, and model size. Since different language model families employ distinct architectures and tokenization strategies, it is unclear whether they benefit equally from knowledge distillation. By evaluating multiple compact models using shared teacher data and evaluation protocol, with model-specific training recipes, we aim to identify which architecture retains mathematical reasoning capability most effectively after distillation.
 
 **This README covers the shared/root-level pieces and focuses mainly on the teacher model**. Each student track will document setup and training in its own subfolder README.
 
@@ -39,7 +39,7 @@ Shared responsibilities: teacher prompts, dataset quality, hyperparameter protoc
 How effectively can knowledge distillation transfer mathematical reasoning capability from a large language model to compact language models while maintaining computational efficiency?
 
 - **Minimal goal:** Generate a teacher dataset from a GSM8K subset; fine-tune three compact students (Qwen3-1.7B, Gemma 3 1B, Llama 3.2 1B) with Quantized Low-Rank Adaptation (QLoRA); evaluate each against its own pretrained base on the official GSM8K test split.
-- **Ambitious goal:** Compare student architectures under identical training conditions; measure efficiency gains from distillation; analyze how much of the teacher's performance each student retains; investigate whether architecture choice affects distillation effectiveness.
+- **Ambitious goal:** Compare student architectures using shared teacher data and evaluation settings, with model-specific training recipes; measure efficiency gains from distillation; analyze how much of the teacher's performance each student retains; investigate whether architecture choice affects distillation effectiveness.
 - **Success criterion:** Reproducible adapters + metrics under a fixed protocol so the three student tracks are fairly comparable. A null or small gain is a valid scientific result.
 
 ## Executive Summary
@@ -178,7 +178,7 @@ Gemma poster chart: [`gemma_accuracy_bars.png`](outputs/gemma/analysis/gemma_acc
 | Valid format rate | 58.8% | **92.4%** | **+33.7 pp** |
 | Truncation rate | 0.8% | 7.4% | +6.6 pp (longer CoTs) |
 | Avg inference latency | ~2.1 s / ex | ~5.2 s / ex | longer generations |
-| Peak GPU memory (eval) | ~2.4 GB | ~2.4 GB | similar |
+| Peak GPU memory (eval) | ~2.35 GiB | ~2.39 GiB | similar |
 | `max_new_tokens` | 768 | 768 | team-matched student budget |
 | Adapter | none | `llama/llama3_1b_v4_r16_lr2e4` | QLoRA r=16, lr=2e-4 |
 
@@ -318,7 +318,7 @@ Qwen is our upper-bound case, not just 'the biggest model.' It's the same family
 
 Gemma was picked to test a specific, different hypothesis — not architecture in general, but whether existing math specialization survives a second round of generic distillation. Gemma's own training already includes documented reinforcement learning on math problems, so we predicted it would start ahead of Llama and keep some of that edge after fine-tuning. That's exactly the kind of prediction you can only test by picking a model that already has domain-specific training going in — and this is actually where our project produced its most interesting result: Gemma's baseline prediction held, but the 'retain the edge' part didn't. It regressed instead, which tells us something real about how generic SFT can interact with — and potentially overwrite — RL-shaped behavior.
 
-Overall, reasoning distillation is highly student-dependent: Qwen benefited most, Llama improved moderately, while Gemma improved formatting but lost mathematical accuracy. Most of the gap to the 92.27% teacher remains: widest for cross-family Llama (~41.5 pp) and Gemma (~51.3 pp), narrower for same-family Qwen (~12.7 pp). The compact students remain lightweight (~1.9–3.4 GB) and practical for local, privacy-friendly use, but they are not replacements for the 14B teacher. Main caveats are the 2,000-example subset, single teacher/benchmark, and one selected run per student.
+Overall, reasoning distillation is highly student-dependent: Qwen benefited most, Llama improved moderately, while Gemma improved formatting but lost mathematical accuracy. Most of the gap to the 92.27% teacher remains: widest for cross-family Llama (~41.5 pp) and Gemma (~51.3 pp), narrower for same-family Qwen (~12.7 pp). The compact students remain lightweight (~1.9–3.4 GiB) and practical for local, privacy-friendly use, but they are not replacements for the 14B teacher. Main caveats are the 2,000-example subset, single teacher/benchmark, and one selected run per student.
 ## Repository structure (current)
 
 ```text
@@ -331,7 +331,7 @@ teacher-student-distillation/
 ├── evaluation/
 │   ├── evaluate_gsm8k.py         # shared teacher + student evaluator
 │   └── poster_analysis.py        # McNemar + team summary merge
-├── outputs/                      # run manifests, metrics, predictions (adapters may be gitignored)
+├── outputs/                      # run manifests, metrics, predictions
 ├── teacher/
 │   ├── generate_teacher_gsm8k.py # teacher dataset generation + validation pipeline
 │   ├── rescue_dollar_rejects.py  # recover validated dollar-format false rejects
@@ -346,7 +346,7 @@ Each student subfolder owner will maintain their own README with that track's en
 
 ## Compute / GPU usage
 
-Teacher generation (train + val) and teacher test eval were run with different batching settings, so peak VRAM is reported separately. Generation config `max_tokens` is **2048** (see run manifest); train/val peak ~23 GB was observed at **batch size 4** on the vLLM teacher server.
+Teacher generation (train + val) and teacher test eval were run with different batching settings, so peak VRAM is reported separately. Generation config `max_tokens` is **2048** (see run manifest); train/val peak ~20.4 GiB was observed at **batch size 4** on the vLLM teacher server.
 
 | Model | Stage | Batch size | Max tokens | Peak GPU memory |
 |-------|--------|------------|------------|-----------------|
@@ -366,9 +366,9 @@ Teacher generation (train + val) and teacher test eval were run with different b
 
 - **Teacher prompt/data iteration cost:** revising the teacher prompt for hard problems required a full dataset regeneration and retraining cycle before the real issues surfaced. **Mitigation:** pilot new prompts on a small subset (~500 examples) through the full loop before scaling to all 2,000.
 - **Limited training data:** fixed random seed for reproducibility; subset size may be expanded if time/compute allow.
-- **Architecture differences across students:** shared dataset/splits/protocol across all three; only QLoRA target modules are adjusted per architecture where necessary.
+- **Architecture differences across students:** shared dataset, splits, and evaluation protocol across all three; QLoRA fine-tuning uses model-specific target modules and training settings
 - **GPU/compute constraints:** 4-bit QLoRA with gradient accumulation and checkpointing across all students.
-- **Uneven distillation effectiveness across architectures:** evaluated under identical conditions regardless of outcome; a null or uneven result is reported as a valid finding, not treated as project failure.
+- **Uneven distillation effectiveness across architectures:** evaluated using the shared student evaluation protocol regardless of outcome, a null or uneven result is reported as a valid finding, not treated as project failure.
 
 ## Privacy perspective
 
