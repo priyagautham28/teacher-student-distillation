@@ -14,7 +14,6 @@ This is the **Llama-3.2-1B-Instruct student track**: Quantized Low-Rank Adaptati
 | [Results](#results) | Before/after/teacher table, McNemar, figures with captions |
 | [Vs Meta’s published GSM8K](#vs-metas-published-llama-32-1b-gsm8k-444) | Fair comparison to Meta’s 44.4% card number |
 | [Example](#example-teacher-vs-base-vs-distilled-student) | Short teacher / base / distilled trace |
-| [Why these students differ](#why-these-students-differ-and-what-we-expected) | Architecture differences + ranked expectations |
 | [What moved the score](#what-moved-the-score-ablations) | Full ablation table + what it proves |
 | [Conclusion](#conclusion) | Answers to the research questions for this Llama track |
 | [Method](#method-llama-track) | Pipeline + exact recipe of the official 50.8% run |
@@ -97,7 +96,7 @@ The team trains **three** students on the **same** teacher data to compare archi
 | Valid format | 58.8% | **92.4%** | **+33.7 pp** |
 | Truncation | 0.8% | 7.4% | +6.6 pp (longer CoTs) |
 | Avg latency | ~2.1 s / ex | ~5.2 s / ex | longer generations |
-| Peak GPU (eval) | ~2.4 GB | ~2.4 GB | similar |
+| Peak GPU (eval) | ~2.35 GiB | ~2.39 GiB | similar |
 
 Best validation checkpoint was checkpoint-242 (val gen-EM 0.57). We report final_adapter at 50.8% as the official student result under the team-matched max_new_tokens=768 eval.
 
@@ -254,7 +253,7 @@ For the Llama-3.2-1B track, knowledge distillation **does** transfer useful GSM8
 1. **Distillation works, and the gain is real.** Exact-match rises **44.3% → 50.8%** (+6.5 pp; McNemar ($p \approx 2.8 \times 10^{-5}$)). Format adherence jumps (~59% → ~92%), so the student becomes a reliable tagged-CoT solver, not only a slightly better guesser.
 2. **Most teacher performance is still missing.** The gap to Qwen3-14B-AWQ (~92.3%) remains ~**41.5 pp** (McNemar ($p \approx 1.3 \times 10^{-113}$)). Residual failures are mostly **valid tags, wrong math** — a reasoning/capacity ceiling on a cross-family ~1B model, not a formatting bug.
 3. **What actually moved the needle:** SFT on verified teacher CoTs gets you to ~49% in development ablations. The official **50.8%** uses v4 one-op-per-step CoTs with an updated shared train/eval prompt, scored at team-matched `max_new_tokens=768`. Larger LoRA (r=32) did not help.
-4. **Efficiency / local deployment:** eval stays light (~2.4 GB peak); latency rises (~2.1 → ~5.2 s/ex) because generations are longer. Those times are batch-1 `transformers` wall-clock on this track’s GPU — not matched against the teacher’s vLLM server. For privacy-preserving local use, the distilled 1B student is practical hardware-wise, but accuracy is still far from the 14B teacher — good enough for some offline assistive use, not a drop-in replacement for cloud-scale reasoning.
+4. **Efficiency / local deployment:** eval stays light (~2.39 GB peak); latency rises (~2.1 → ~5.2 s/ex) because generations are longer. Those times are batch-1 `transformers` wall-clock on this track’s GPU — not matched against the teacher’s vLLM server. For privacy-preserving local use, the distilled 1B student is practical hardware-wise, but accuracy is still far from the 14B teacher — good enough for some offline assistive use, not a drop-in replacement for cloud-scale reasoning.
 5. **Team architecture hypothesis (this track):** Llama behaves like the expected **harder cross-family** student — clear relative gain from distillation, large absolute gap left for same-family / stronger students (Qwen, Gemma) to fill in the shared comparison.
 
 **Bottom line:** QLoRA distillation of Qwen3-14B-AWQ CoTs into Llama-3.2-1B is a statistically significant, reproducible win on GSM8K under the shared evaluator, driven mainly by protocol learning plus modest reasoning transfer; closing the remaining gap needs stronger students, better data, or methods beyond single-pass tagged SFT — not more tag engineering.

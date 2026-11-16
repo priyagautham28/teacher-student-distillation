@@ -140,9 +140,9 @@ All four rows (teacher and all three students) are filled from repository metric
 
 | Model | Exact-match accuracy | Improvement over base | Gap to teacher | Peak GPU memory | Inference latency | Model size |
 |---|---|---|---|---|---|---|
-| Teacher (Qwen3-14B-AWQ) | 92.27% | — | — | ~9.7 GB (test) / ~23 GB (gen) | ~2.27 s / ex (test) | 14B AWQ |
-| Llama-3.2-1B (base) | 44.3% | — | 48.0 pp | ~2.4 GB | ~2.1 s / ex | ~1.2B |
-| Llama-3.2-1B (after QLoRA) | **50.8%** | **+6.5 pp** | **41.5 pp** | ~2.4 GB | ~5.2 s / ex | ~1.2B + ~58 MB adapter |
+| Teacher (Qwen3-14B-AWQ) | 92.27% | — | — | ~20.4 GiB | ~2.27 s / ex (test) | 14B AWQ |
+| Llama-3.2-1B (base) | 44.3% | — | 48.0 pp | ~2.35 GiB | ~2.1 s / ex | ~1.2B |
+| Llama-3.2-1B (after QLoRA) | **50.8%** | **+6.5 pp** | **41.5 pp** | ~2.39 GiB | ~5.2 s / ex | ~1.2B + ~58 MB adapter |
 | Gemma-3-1B (base) | 51.40% | — | 40.86 pp | ~1.89 GiB | ~6.77 s / ex | ~1.0B |
 | Gemma-3-1B (after QLoRA) | 41.02% | **−10.39 pp** | **51.25 pp** | ~1.95 GiB | ~17.09 s / ex | ~1.0B + ~49.8 MB adapter |
 | Qwen3-1.7B (base) | 74.68% | — | 17.59 pp | ~3.34 GiB | ~14.51 s / ex | ~1.72B |
@@ -350,11 +350,11 @@ Teacher generation (train + val) and teacher test eval were run with different b
 
 | Model | Stage | Batch size | Max tokens | Peak GPU memory |
 |-------|--------|------------|------------|-----------------|
-| Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 2048 | ~23 GB |
-| Teacher (Qwen3-14B-AWQ) | Official test eval | 1 | 2048 | ~9.7 GB |
+| Teacher (Qwen3-14B-AWQ) | Train + val generation | 4 | 2048 | ~20.4 GiB |
+| Teacher (Qwen3-14B-AWQ) | Official test eval | 1 | 2048 | ~20.4 GiB |
 | Llama-3.2-1B (QLoRA train) | Fine-tuning (`train_v3`, r=16, lr=2e-4, eff. batch 16, max_seq 1024) | 4 × accum 4 | 1024 (seq) / gen-eval **768** | ~4-bit QLoRA on 24GB class GPU; wall-clock ~30 min / run |
-| Llama-3.2-1B (base eval) | Official test (before SFT, bf16, v4 prompt, max768) | 1 | **768** | ~2.4 GB |
-| Llama-3.2-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~2.4 GB |
+| Llama-3.2-1B (base eval) | Official test (before SFT, bf16, v4 prompt, max768) | 1 | **768** | ~2.35 GiB |
+| Llama-3.2-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~2.39 GiB |
 | Gemma-3-1B (QLoRA train) | Fine-tuning (`gemma_qlora_training.ipynb`, r=16, lr=2e-4, eff. batch 16, max_seq 1536, 3 epochs) | 2 × accum 8 | 1536 (seq) / gen-eval **768** | 4-bit QLoRA on a Colab T4 (14.56 GiB); wall-clock ~43.7 min |
 | Gemma-3-1B (base eval) | Official test (before SFT, fp16, max768) | 1 | **768** | ~1.89 GiB |
 | Gemma-3-1B (after QLoRA eval) | Official test (best adapter, max768) | 1 | **768** | ~1.95 GiB |
@@ -384,6 +384,17 @@ Privacy is the **application motivation**, not a new privacy algorithm. A compac
 
 ## Licenses & attribution
 
+### Project code
+
+The original scripts and notebooks written for this project—including
+teacher-data generation, student fine-tuning, evaluation, and analysis
+code—are licensed under the [MIT License](LICENSE).
+
+This MIT license does not cover the paper, datasets, model weights,
+adapters, or third-party code. Their applicable licenses and upstream
+terms continue to apply.
+
+### Third-party materials
 - **Qwen3-14B-AWQ / Qwen3-1.7B:** Qwen license / model card on Hugging Face
 - **Llama 3.2:** Meta Llama 3.2 Community License — [meta-llama/Llama-3.2-1B-Instruct](https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct)
 - **Gemma 3:** Gemma license / model card on Hugging Face
